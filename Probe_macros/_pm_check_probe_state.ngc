@@ -1,0 +1,16 @@
+; Error if the probe is not on
+o<_pm_check_probe_state> sub
+
+    #<probesel> = #1
+    
+    o100 if [#<_pmm_error_status>]
+        o<_pm_check_probe_state> return [-1]
+    o100 elseif [#<_pmm_probe_on> EQ 0]
+        #<_pmm_error_status> = -100
+    o100 elseif [#<_pmm_probe_sel> NE #<probesel>]
+        #<_pmm_error_status> = -101
+    o100 endif
+
+o<_pm_check_probe_state> endsub [0]
+M2
+

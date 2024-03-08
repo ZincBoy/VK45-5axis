@@ -1,0 +1,215 @@
+component plc_replace2 "simple support logic that used to be in classic ladder but I ran out of memory";
+pin in    bit   ext-estop;
+pin in    bit   pendant-estop;
+pin in    bit   machine-on;
+pin in    bit   machine-off;
+pin in    bit   z-axis-enable;
+pin in    bit   ext-machine-is-on;
+pin in    bit   force-lube-on;
+pin in    bit   c-axis-present;
+pin in    bit   coolant-pump-on;
+pin in    bit   program-running;
+pin out   bit   servo-brake-not;
+pin out   bit   hydraulic-on;
+pin out   bit   z-axis-brake;
+pin out   bit   servo-drive-reset;
+pin out   bit   lube-on;
+pin out   bit   ext-estop-out;
+pin out   bit   machine-is-on;
+pin out   bit   c-axis-purge;
+
+pin out   s32   stateval;
+
+param rw float lube-on-time = 10.0;
+param rw float lube-period  = 1800.0;
+param rw float inital-estop-pulse = 1.0;
+param rw float servo-reset-delay = 0.1;
+param rw float servo-off-delay = 0.2;
+param rw float hydraulic-delay = 1.0;
+param rw float purge-time = 600.0;
+
+variable  int   currentstate = 0;
+variable  int   lube_val = 0;
+
+variable  float lube_timer = 0;
+variable  float timer = 0;
+variable  float estop_pulse_timer = 0;
+
+variable  float purge_timer = 0;
+variable  int   purge_state = 0;
+
+author "alex lait";
+license "GPL";
+function _;
+
+;;
+
+enum StateVals {
+     state_estop = 0,
+     state_power_off = 1,
+     state_hydraulic_on = 2,
+     state_servo_delay = 3,
+     state_power_on = 4,
+     state_servo_off = 5,
+     };
+
+
+FUNCTION(_){
+
+	//machine estop and power up/down sequencer
+	if (!ext_estop | pendant_estop) currentstate = state_estop;
+	
+	stateval = currentstate;
+	
+	switch (currentstate)
+	{
+		case state_estop:
+			servo_brake_not = 0;
+			hydraulic_on = 0;
+			z_axis_brake = 0;
+			machine_is_on = 0;
+			ext_estop_out = 0;
+			servo_drive_reset = 0;
+			if (ext_estop & !pendant_estop)
+			{
+				timer += fperiod;
+				if (timer > inital_estop_pulse)
+				{
+					timer = 0;
+					currentstate = state_power_off;
+					ext_estop_out = 1;
+				}
+			}
+			else
+			{
+				timer = 0;
+			}
+			break;
+		
+		case state_power_off:
+			servo_brake_not = 0;
+			hydraulic_on = 0;
+			z_axis_brake = 0;
+			machine_is_on = 0;
+			timer = 0;
+			servo_drive_reset = 0;
+			if (machine_on)
+			{
+				currentstate = state_servo_delay;
+			}
+			break;
+		
+		case state_servo_delay:
+			servo_brake_not = 0;
+			hydraulic_on = 0;
+			z_axis_brake = 0;
+			machine_is_on = 0;
+			servo_drive_reset = 1;
+			timer += fperiod;
+			if (timer > servo_reset_delay)
+			{
+				timer = 0;
+				currentstate = state_hydraulic_on;
+			}
+			break;
+			
+		
+		case state_hydraulic_on:
+			hydraulic_on = 1;
+			servo_brake_not = 1;
+			z_axis_brake = 0;
+			machine_is_on = 0;
+			servo_drive_reset = 0;
+			timer += fperiod;
+			if (timer > hydraulic_delay)
+			{
+				timer = 0;
+				currentstate = state_power_on;
+			}
+			break;
+		
+		case state_power_on:
+			servo_brake_not = 1;
+			hydraulic_on = 1;
+			z_axis_brake = 1;
+			machine_is_on = ext_machine_is_on;
+			servo_drive_reset = 0;
+			timer = 0;
+			if (machine_off)
+			{
+				currentstate = state_servo_off;
+			}
+			break;
+		
+		case state_servo_off:
+			timer += fperiod;
+			z_axis_brake = 0;
+			hydraulic_on = 1;
+			servo_drive_reset = 0;
+			machine_is_on = 0;
+			if (timer > servo_off_delay)
+			{
+				timer = 0;
+				currentstate = state_power_off;
+			}
+			break;
+		
+		default:
+			currentstate = state_estop;
+	}
+	
+
+	// Lubrication pulse generator
+	if (currentstate == state_power_on)
+	{
+		lube_timer += fperiod;
+		
+		if (lube_timer < lube_on_time)
+		{
+			lube_val = 1;
+		}
+		else if (lube_timer < lube_period)
+		{
+			lube_val = 0;
+		}
+		else
+		{
+			lube_timer = 0;
+		}
+		
+		lube_on = lube_val | force_lube_on;
+	}
+	else
+	{
+		lube_on = 0;
+		lube_val = 0;
+		lube_timer = 0;
+	}
+	
+
+	// axis purge timer
+	if (currentstate == state_power_on)
+	{
+		purge_timer += fperiod;
+		
+		if (coolant_pump_on || program_running)
+		{
+			purge_state = 1;
+			purge_timer = 0;
+		}
+		if (purge_state)
+		{
+			if (purge_timer > purge_time)
+			{
+				purge_state = 0;
+			}
+		}
+	}
+	else
+	{
+		purge_state = 0;
+	}
+    
+    c_axis_purge = purge_state;
+
+}

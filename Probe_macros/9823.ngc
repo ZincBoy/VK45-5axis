@@ -1,0 +1,75 @@
+o<9823> sub
+
+    ;vector 3point bore or boss probe
+    ;  G65 P9823 Ii Jj Kk Dd [Zz Ee Ff Hh Kk Qq Rr Ss Tt Uu Vv Ww]
+	;  implemented
+	;  |  renishaw standard
+	;  |  |
+	;  D  D  Dimension
+	;  I  A  First probe angle
+	;  J  B  second probe angle
+	;  K  C  third probe angle
+	;  z  z  absolute probe level, if set will do a web probe
+	;  e  h  +/- tolerance value for dimension
+	;  r  r  clearance overide, set to negative for pocket web probe
+	;  q  q  probe overtravel (past target point)3
+	;  |  |
+	;  |  | Values set with extended g65 p9000 pre call
+	;  e  e  Experience value - tool offset containing correction factor
+	;  k  f  pecent of error to use to update tool offset
+	;  q  s  number of work offset to be updated
+	;  d  m  true position error allowance
+	;  r  t  tool number to update offset
+	;  i  u  upper tolerance for tool offset update, alarm if over this value
+	;  j  v  null band, no tool offset update is done if the error is in this band
+	;     w  print the output data NOT IMPLEMENTED
+    
+    #<z> = #<_pv_z>
+    #<zdown> = 0
+    
+    o100 if [#<_pv_got_i> and #<_pv_got_j> and #<_pv_got_k> and #<_pv_got_dimension>]
+    o100 else
+        (abort, I,J,K,D words required in P9823 3 point bore or boss probe cycle)
+    o100 endif
+
+	o120 if [#<_pv_got_z> and #<_pv_got_clearance>]
+		o125 if [#<_pv_clearance> lt 0]
+			; internal bore with zdown
+			#<direction> = -1
+			#<zdown> = 1
+		o125 else
+			; boss with clearance override
+			#<direction> = 1
+			#<zdown> = 1
+		o125 endif
+	o120 elseif [#<_pv_got_z>]
+		; boss with no clearance override
+		#<direction> = 1
+		#<zdown> = 1
+	o120 else
+		; bore
+		o117 if [#<_pv_got_clearance> and [#<_pv_clearance> lt 0]]
+			(abort, Clearance may not be less than zero without Z word, P#<p>)
+		o117 endif
+		#<direction> = -1
+		#<z> = 0
+	o120 endif
+
+    #<startx> = #<_x>
+    #<starty> = #<_y>
+    
+    ;must have vector cal
+    o<_pm_cal_check> call [1]
+
+    o<_pm_check_probe_state> call [0]
+    
+    o<_pm_probe_3point_bore> call [#<_pv_i>] [#<_pv_j>] [#<_pv_k>] [#<_pv_dimension>] [#<_pv_clearance>] [#<zdown>] [#<z>] [#<_pv_search_dist>]
+
+    o<_pm_check_tolerance> call [4] [#<startx>] [#<starty>] [#<_pv_dimension>] [0] [0] [0] [#<_pv_dimtol>] [#<_pv_tpe_tol>]
+    
+    o<_pm_set_workoffset> call [#<_pv_set_offset>] [#<_pv_offset_num>] [1] [1] [0] [#[#<_pma_xerr>]] [#[#<_pma_yerr>]] [0]
+
+    o<_pm_set_tooloffset> call [#<_pv_set_tool>] [#<_pv_tool_num>] [0] [0] [0] [1] [0]
+        
+o<9823> endsub [0]
+M2

@@ -1,0 +1,30 @@
+component axis_load_scale "scales the analog current sense to determine the axis load";
+
+pin in  float x-axis-in;             //raw current signal from amp
+pin in  float y-axis-in;
+pin in  float z-axis-in;
+pin out float x-load;                //scaled axis load signal to the UI
+pin out float y-load;
+pin out float z-load;
+
+param rw float x-offset=12.1;         //voltage value for zero current
+param rw float x-peak=3.92;           //max voltage swing around the offset voltage
+param rw float y-offset=12.1;
+param rw float y-peak=3.92;
+param rw float z-offset=12.1;
+param rw float z-peak=6.78;
+
+author "alex lait";
+license "GPL";
+function _;
+
+;;
+#include "rtapi_math.h"
+
+FUNCTION(_){
+
+     x_load = fabs((x_axis_in - x_offset) / x_peak) * 100; //scale in percent
+     y_load = fabs((y_axis_in - y_offset) / y_peak) * 100; //scale in percent
+     z_load = fabs((z_axis_in - z_offset) / z_peak) * 100; //scale in percent
+
+}

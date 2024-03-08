@@ -1,0 +1,21 @@
+component vk45_probe_sensitivity "detects it the spindle is turning and lowers the sensitivity of the built in probe";
+
+pin in  float spindle-rpm;
+pin out bit   lower-sensitivity;
+
+param rw float min-spindle-rpm = 50; //if the spindle is turning at greater than this rpm then lower the sensitivity
+
+author "alex lait";
+license "GPL";
+function _;
+
+;;
+
+FUNCTION(_){
+
+     if (spindle_rpm > min_spindle_rpm)
+          lower_sensitivity = 1;
+     else
+          lower_sensitivity = 0;
+     
+}

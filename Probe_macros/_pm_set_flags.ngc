@@ -1,0 +1,23 @@
+;set the probe and tolerance flags
+o<_pm_set_flags> sub
+    
+    #<flagval> = #1
+    
+    o10 if [#<_pmm_error_status>]
+        o<_pm_set_flags> return [-1]
+    o10 endif
+    
+    #[#<_pma_tolerance_flag>] = [#[#<_pma_tolerance_flag>] + #<flagval>]
+
+    o100 if [#[#<_pma_setting_var>] EQ 7]
+		;just  flag tolerance issues, this should be for automated handling
+		; so do nothing
+	o100 elseif [#<flagval>]
+        ;error as well as tolerance error
+        #[#<_pma_probe_error>] = [#[#<_pma_probe_error>] + #<flagval>]
+        #<_pmm_error_status> = -117
+    o100 endif
+    
+
+o<_pm_set_flags> endsub [0]
+M2

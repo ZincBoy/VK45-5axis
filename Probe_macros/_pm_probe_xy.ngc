@@ -1,0 +1,211 @@
+; basic xy probe function
+o<_pm_probe_xy> sub
+
+    ;required inputs
+    #<x_estimate>   = #1
+    #<y_estimate>   = #2
+    #<direction>    = #3 
+    #<z_level>      = #4 
+    #<zdown>        = #5 
+    #<move_center>  = #6
+    #<orient_angle> = #7
+    #<orient_enable>= #8
+    #<no_cal>       = #9
+    #<r>            = #10
+
+    ; local aliases
+    #<sd> = #<_pv_search_dist>
+    #<bd> = #<_pmm_backoff_distance>
+
+    o10 if [#<_pmm_error_status> NE 0]
+        o<_pm_probe_xy> return [-1]
+    o10 endif
+
+
+    o100 if [#<x_estimate> LT 0]
+        #<_pmm_error_status> = -112
+        o<_pm_probe_xy> return [-1]
+    o100 endif
+    o101 if [#<y_estimate> LT 0]
+        #<_pmm_error_status> = -113
+        o<_pm_probe_xy> return [-1]
+    o101 endif
+    o102 if [[#<direction> NE -1] AND [#<direction> NE 1]]
+        #<_pmm_error_status> = -114
+        o<_pm_probe_xy> return [-1]
+    o102 endif
+    o103 if [#<direction> GT 0]
+        #<zdown> = 1
+    o103 endif 
+    
+    ;capture the starting point
+    #<startx> = #<_x>
+    #<starty> = #<_y>
+    #<startz> = #<_z>
+    
+    o110 if [[#<orient_enable> GT 0] AND [#<_ini[PROBE_MACRO]HAS_SPINDLE_ORIENT> GT 0]]
+        M19 R[#<orient_angle>] Q[#<_ini[PROBE_MACRO]SPINDLE_ORIENT_TIME>]
+    o110 endif
+    
+    ; calculate xy clearance values
+    o115 if [ABS[#<r>] GT 0]
+        #<clearance> = ABS[#<r>]
+    o115 elseif [[ABS[#<r>] EQ 0] AND [#<direction> GT 0]]
+        #<_pmm_error_status> = -115
+        o<_pm_probe_xy> return [-1]
+    o115 else
+        #<clearance> = 0
+    o115 endif
+
+	#<xtarget> = #<clearance>
+	#<ytarget> = #<clearance>
+
+    o120 if [#<direction> EQ 1]
+        ; outside
+        #<xclear> = [#<x_estimate> / 2 + #<clearance>]
+        #<yclear> = [#<y_estimate> / 2 + #<clearance>]
+    o120 else
+        ; inside
+        o121 if [[#<x_estimate> / 2] LT #<clearance>]
+			#<xtarget> = [#<x_estimate> / 2]
+            #<xclear> = 0
+        o121 else
+            #<xclear> = [#<x_estimate> / 2 - #<clearance>]
+        o121 endif
+        o122 if [[#<y_estimate> / 2] LT #<clearance>]
+			#<ytarget> = [#<y_estimate> / 2]
+            #<yclear> = 0
+        o122 else
+            #<yclear> = [#<y_estimate> / 2 - #<clearance>]
+        o122 endif
+    o120 endif
+	
+	;overtravel past the target value
+	#<sd> = [#<sd> + #<clearance>]
+    
+   
+    ; skip the x probe if there is no estimate
+    o125 if [#<x_estimate> NE 0]
+        ; relative move to the x+ position
+        G91 G1 X[#<xclear>] F[#<_pmm_rapid_feedrate>]
+        
+        ; move to the z height
+        o130 if [#<zdown>]
+            G90 G1 Z[#<z_level>]
+        o130 endif
+        
+        ;probe the x plus location
+        o140 if [#<direction>  GT 0]
+            o<_pm_probe> call [#<sd>] [#<bd>] [180] [0] [#<no_cal>] [#<xtarget>]
+        o140 else
+            o<_pm_probe> call [#<sd>] [#<bd>] [0] [0] [#<no_cal>] [#<xtarget>]
+        o140 endif
+
+        #<xp> = #[#<_pma_xpos>]
+        
+        o150 if [#<zdown>]
+            ; move back up
+            G90 G1 Z[#<startz>] F[#<_pmm_rapid_feedrate>]
+        o150 endif
+
+        ; next location x minus
+        G90 G1 X[#<startx> - #<xclear>] F[#<_pmm_rapid_feedrate>]       
+
+        ; relative move to the z height
+        o160 if [#<zdown>]
+            G90 G1 Z[#<z_level>]
+        o160 endif
+        
+        ;probe the x minus location
+        o170 if [#<direction>  GT 0]
+            o<_pm_probe> call [#<sd>] [#<bd>] [0] [0] [#<no_cal>] [#<xtarget>]
+        o170 else
+            o<_pm_probe> call [#<sd>] [#<bd>] [180] [0] [#<no_cal>] [#<xtarget>]
+        o170 endif
+
+        #<xn> = #[#<_pma_xpos>]
+        
+        o180 if [#<zdown>]
+            ; move back up
+            G90 G1 Z[#<startz>] F[#<_pmm_rapid_feedrate>]
+        o180 endif
+    o125 else
+        #<xp> = #<_x>
+        #<xn> = #<_x>
+    o125 endif
+
+    o185 if [#<y_estimate> NE 0]
+        ; return to center for y probe
+        o190 if [#<move_center> GT 0]
+            ;recenter after probe
+            G90 G1 X[[#<xp> + #<xn>] / 2] F[#<_pmm_rapid_feedrate>]
+            G1 Y[#<starty> + #<yclear>]
+        o190 else
+            ; don't recenter after probe
+            G90 G1 X[#<startx>] F[#<_pmm_rapid_feedrate>]
+            G1 Y[#<starty> + #<yclear>]
+        o190 endif
+        
+        ; move to the z height
+        o200 if [#<zdown>]
+            G90 G1 Z[#<z_level>]
+        o200 endif
+
+        ;probe the y plus location
+        o210 if [#<direction>  GT 0]
+            o<_pm_probe> call [#<sd>] [#<bd>] [270] [0] [#<no_cal>] [#<ytarget>]
+        o210 else
+            o<_pm_probe> call [#<sd>] [#<bd>] [90] [0] [#<no_cal>] [#<ytarget>]
+        o210 endif
+
+        #<yp> = #[#<_pma_ypos>]
+
+        o220 if [#<zdown>]
+            ; move back up
+            G90 G1 Z[#<startz>] F[#<_pmm_rapid_feedrate>]
+        o220 endif
+
+        ; next location y minus
+        G90 G1 Y[#<starty> - #<yclear>] F[#<_pmm_rapid_feedrate>]       
+
+        ; relative move to the z height
+        o230 if [#<zdown>]
+            G90 G1 Z[#<z_level>]
+        o230 endif
+
+        ;probe the y minus location
+        o240 if [#<direction>  GT 0]
+            o<_pm_probe> call [#<sd>] [#<bd>] [90] [0] [#<no_cal>] [#<ytarget>]
+        o240 else
+            o<_pm_probe> call [#<sd>] [#<bd>] [270] [0] [#<no_cal>] [#<ytarget>]
+        o240 endif
+        #<yn> = #[#<_pma_ypos>]
+
+        o250 if [#<zdown>]
+            ; move back up
+            G90 G1 Z[#<startz>] F[#<_pmm_rapid_feedrate>]
+        o250 endif
+    o185 else
+        #<yp> = #<_y>
+        #<yn> = #<_y>
+    o185 endif
+
+    ; return to start/center
+    o260 if [#<move_center>]
+        ;recenter after probe
+        G90 G1 X[[#<xp> + #<xn>] / 2] F[#<_pmm_rapid_feedrate>]
+        G1 Y[[#<yp> + #<yn>] / 2]
+    o260 else
+        ; don't recenter after probe
+        G90 G1 X[#<startx>] F[#<_pmm_rapid_feedrate>]
+        G1 Y[#<starty>]
+    o260 endif
+    (print, xp #<xp> xn #<xn>)
+   ; set the return values
+    #[#<_pma_xpos>] =       #<xp>
+    #[#<_pma_start_xpos>] = #<xn>
+    #[#<_pma_ypos>] =       #<yp>
+    #[#<_pma_start_ypos>] = #<yn>
+
+o<_pm_probe_xy> endsub [0]
+M2

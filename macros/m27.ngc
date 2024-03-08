@@ -1,0 +1,18 @@
+;M27 remap
+
+o<m27> sub
+
+     #<air_pin> = #<_ini[COOLANT]AIR_PIN>
+
+    o100 if [exists[#<p>]]
+        o110 if [#<p> EQ 0]
+            M7
+        o110 elseif [#<p> EQ 1]
+            M64 P#<air_pin>
+        o110 endif
+    o100 else
+        M7
+    o100 endif
+
+o<m27> endsub [0]
+M2

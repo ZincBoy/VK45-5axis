@@ -1,0 +1,26 @@
+loadrt conv_s32_float names=dbg-conv-to-float
+addf dbg-conv-to-float        servo-thread
+
+net dbg_carohome              toolchangerdebug.hal_dbg_carohome
+net dbg_extend                toolchangerdebug.hal_dbg_extend
+net dbg_retract               toolchangerdebug.hal_dbg_retract
+net dgb_rotate_ccw            toolchangerdebug.hal_dbg_rotate_ccw
+net dbg_rotate_cw             toolchangerdebug.hal_dbg_rotate_cw
+net dbg_slide_carousel        toolchangerdebug.hal_dbg_slide_carousel
+net dbg_slide_spindle         toolchangerdebug.hal_dbg_slide_spindle
+net dbg_spinhome              toolchangerdebug.hal_dbg_spinhome
+net dbg_swing_down            toolchangerdebug.hal_dbg_swing_down
+net dbg_swing_up              toolchangerdebug.hal_dbg_swing_up
+net tc-sense-rot-cw           toolchangerdebug.hal_led_rotate_cw
+net tc-sense-rot-ccw          toolchangerdebug.hal_led_rotate_ccw
+net tc-sense-extend           toolchangerdebug.hal_led_extend
+net tc-sense-retract          toolchangerdebug.hal_led_retract
+net tc-sense-swing-spindle    toolchangerdebug.hal_led_swing_down
+net tc-sense-swing-carousel   toolchangerdebug.hal_led_swing_up
+net tc-sense-slide-home       toolchangerdebug.hal_led_slide_home
+net tc-sense-slide-spindle    toolchangerdebug.hal_led_slide_spindle
+net tc-sense-slide-carousel   toolchangerdebug.hal_led_slide_carousel
+net tool-reset-error          toolchangerdebug.hal_dbg_reinit_toolchanger
+net carousel-position         dbg-conv-to-float.in
+net caropos-float             dbg-conv-to-float.out  =>  toolchangerdebug.hal_meter_carousel_pocket
+

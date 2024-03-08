@@ -1,0 +1,178 @@
+component music_and_light "A component to control the alarm light and sound";
+
+pin in  bit machine-is-on;
+
+pin in  bit gui-error;
+pin in  bit delete-message;
+
+pin in  bit program-is-idle;
+pin in  bit program-is-running;
+
+pin in  bit hardware-fault;
+pin in  bit hardware-warn;
+
+pin in  bit m-code-en;
+pin in  bit m-code-0;
+pin in  bit m-code-1;
+
+pin out bit alarm-light;
+pin out bit music-enable;
+pin out bit music-sel-0;
+pin out bit music-sel-1;
+pin out bit music-sel-2;
+
+param rw float play-time=12.0;          // time to play the notification sounds
+
+variable int progstate = 0;
+variable int mcodestate = 0;
+variable int musicval = 0;
+variable float ptimer = 0.0;
+variable float mtimer = 0.0;
+variable float stimer = 0.0;
+
+author "alex lait";
+license "GPL";
+function _;
+
+;;
+
+enum StateVals {
+     init = 0,
+     running,
+     progdone,
+     };
+
+enum MusicDecode {
+	amaryllis = 1,
+	n40_mozart = 2,
+	nocturne = 4,
+	menuette = 5,
+	fur_eliese = 7,
+	la_priere = 3,
+	pipipi = 6,
+	bin_bon = 0,
+	};
+
+FUNCTION(_){
+
+	int music = bin_bon;
+	
+	//startup music
+	if (machine_is_on)
+		stimer += fperiod;
+	else
+		stimer = 0;
+	
+	//end of program music
+	/*switch (progstate)
+	{
+		case init:
+			if (program_is_running)
+				progstate = running;
+			break;
+		
+		case running:
+			if (program_is_idle)
+				if (gui_error)
+					progstate = init;
+				else
+					progstate = progdone;
+			break;
+			
+		case progdone:
+			ptimer += fperiod;
+			if (ptimer > play_time)
+			{
+				ptimer = 0;
+				progstate = init;
+			}
+			break;
+		
+		default:
+			progstate = init;
+	}*/
+	
+	//gcode controlled music
+	switch (mcodestate)
+	{
+		case 0:
+			if (m_code_en)
+			{
+				mcodestate = 1;
+				musicval = m_code_0 + m_code_1 << 1;
+			}
+			break;
+		
+		case 1:
+			if (delete_message)
+			{
+				mcodestate = 0;
+				musicval = 0;
+			}
+	}
+	
+	
+	//default outputs to alarm mode
+	
+	if (gui_error && hardware_fault)
+	{
+		music_enable = 1;
+		alarm_light = 1;
+		music = bin_bon;
+	}
+	else if (gui_error && hardware_warn)
+	{
+		music_enable = 1;
+		alarm_light = 1;
+		music = nocturne;
+	}
+	else if (gui_error)
+	{
+		music_enable = 1;
+		alarm_light = 1;
+		music = bin_bon;
+	}
+	else if (machine_is_on && (stimer < play_time))
+	{
+		music_enable = 1;
+		alarm_light = 0;
+		music = amaryllis;
+	}
+	else if (mcodestate)
+	{
+	
+		switch (musicval)
+		{
+			case 0:
+				music = n40_mozart;
+				break;
+			case 1:
+				music = nocturne;
+				break;
+			case 2:
+				music = menuette;
+				break;
+			case 3:
+				music = fur_eliese;
+				break;
+			default:
+				music = pipipi;			
+		}
+		alarm_light = 1;
+		music_enable = 1;
+		
+	}
+	else
+	{
+		music = bin_bon;
+		music_enable = 0;
+		alarm_light = 0;
+	}
+	
+	// decode music selection
+	music_sel_0 = music & 0x01;
+	music_sel_1 = (music & 0x02) >> 1;
+	music_sel_2 = (music & 0x04) >> 2;
+	
+
+}

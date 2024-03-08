@@ -1,0 +1,302 @@
+component frontpanelknobs "knob based control decoding";
+pin in  float jog-velocity-in;
+pin in  bit   rapid-0;
+pin in  bit   rapid-1;
+pin in  bit   jog-step-in-0;
+pin in  bit   jog-step-in-1;
+pin in  bit   jog-step-in-2;
+pin in  bit   spindle-in-0;
+pin in  bit   spindle-in-1;
+pin in  bit   spindle-in-2;
+pin in  bit   spindle-in-3;
+pin in  bit   feed-in-0;
+pin in  bit   feed-in-1;
+pin in  bit   feed-in-2;
+pin in  bit   feed-in-3;
+pin in  bit   machine-is-on;
+pin in  bit   turtle-mode;
+
+pin in  bit   is-auto-mode;
+
+pin out float jog-velocity-out;
+pin out bit   jog-analog-enable;
+pin out float rapid-out;
+pin out bit   rapid-analog-enable;
+pin out bit   jog-step-0;
+pin out bit   jog-step-1;
+pin out bit   jog-step-2;
+pin out bit   jog-step-3;
+pin out bit   jog-step-4;
+pin out float spindle-out;
+pin out bit   spindle-analog-enable;
+pin out float feed-out;
+pin out bit   feed-analog-enable;
+
+param rw float jog-turtle-scale=0.3030303030303;
+param rw float jog-scale=0.1212121212121;
+param rw float rapid-scale=1;
+param rw float spindle-scale=1;
+param rw float feed-scale=0.5;
+param rw float debounce-time=0.1;
+param rw u32   debug-enable = 1;
+
+variable int rapid_value = 0;
+variable int rapid_debounce = 0;
+variable int jog_value = 0;
+variable int jog_debounce = 0;
+variable int spindle_value = 0;
+variable int spindle_debounce = 0;
+variable int feed_value = 0;
+variable int feed_debounce = 0;
+
+variable float timer = 0;
+
+variable float rtimer = 0;
+variable float jtimer = 0;
+variable float stimer = 0;
+variable float ftimer = 0;
+
+author "alex lait";
+license "GPL";
+function _;
+
+;;
+
+FUNCTION(_){
+
+	if (debug_enable)
+		rtapi_set_msg_level(5);
+
+	if (turtle_mode)
+		jog_velocity_out = jog_velocity_in * jog_turtle_scale;
+	else
+		jog_velocity_out = jog_velocity_in * jog_scale;
+		
+	if (jog_velocity_in != 0)
+		jog_analog_enable = 1;
+	else
+		jog_analog_enable = 0;
+	
+	int value;
+	
+	timer += fperiod;
+	
+	value = (int)rapid_0 | (int)rapid_1 << 1;
+	if (value != rapid_debounce)
+	{
+		rtimer = 0;
+		rapid_debounce = value;
+	}
+	else
+	{
+		rtimer += fperiod;
+		if ((rtimer > debounce_time) && (rapid_debounce != rapid_value))
+		{
+			rapid_value = rapid_debounce;
+			rtapi_print_msg(RTAPI_MSG_INFO, "New FP Rapid Override: 0x%X\n", rapid_value);
+		}
+	}
+	
+	value = (int)jog_step_in_0 | (int)jog_step_in_1 << 1 | (int)jog_step_in_2 << 2;
+	if (value != jog_debounce)
+	{
+		jtimer = 0;
+		jog_debounce = value;
+	}
+	else
+	{
+		jtimer += fperiod;
+		//do not change the jog increment when in auto mode, it will abort the program.
+		if ((jtimer > debounce_time) && (jog_debounce != jog_value) && !is_auto_mode && machine_is_on)
+		{
+			jtimer = 0;
+			jog_value = jog_debounce;
+			rtapi_print_msg(RTAPI_MSG_INFO, "New FP Jog Override: 0x%X\n", jog_value);
+			switch (jog_value)
+			{
+				case 1: //continous
+					jog_step_1 = 0;
+					jog_step_2 = 0;
+					jog_step_3 = 0;
+					jog_step_4 = 0;
+					jog_step_0 = 1;
+					break;
+				case 2: //0.0001
+					jog_step_0 = 0;
+					jog_step_2 = 0;
+					jog_step_3 = 0;
+					jog_step_4 = 0;
+					jog_step_1 = 1;
+					break;
+				case 3: //0.001
+					jog_step_0 = 0;
+					jog_step_1 = 0;
+					jog_step_3 = 0;
+					jog_step_4 = 0;
+					jog_step_2 = 1;
+					break;
+				case 4: //0.01
+					jog_step_0 = 0;
+					jog_step_1 = 0;
+					jog_step_2 = 0;
+					jog_step_4 = 0;
+					jog_step_3 = 1;
+					break;
+				case 5: //0.1
+					jog_step_0 = 0;
+					jog_step_1 = 0;
+					jog_step_2 = 0;
+					jog_step_3 = 0;
+					jog_step_4 = 1;
+					break;
+				default:
+					jog_step_0 = 1;
+					jog_step_1 = 0;
+					jog_step_2 = 0;
+					jog_step_3 = 0;
+					jog_step_4 = 0;
+			}
+		}
+	}
+	
+	value = (int)spindle_in_0 | (int)spindle_in_1 << 1 | (int)spindle_in_2 << 2 | (int)spindle_in_3 << 3;
+	if (value != spindle_debounce)
+	{
+		stimer = 0;
+		spindle_debounce = value;
+	}
+	else
+	{
+		stimer += fperiod;
+		if ((stimer > debounce_time) && (spindle_debounce != spindle_value))
+		{
+			stimer = 0;
+			spindle_value = spindle_debounce;
+			rtapi_print_msg(RTAPI_MSG_INFO, "New FP Spindle Override: 0x%X\n", spindle_value);
+		}
+	}
+	
+	value = (int)feed_in_0 | (int)feed_in_1 << 1 | (int)feed_in_2 << 2 | (int) feed_in_3 << 3;
+	if (value != feed_debounce)
+	{
+		ftimer = 0;
+		feed_debounce = value;
+	}
+	else
+	{
+		ftimer += fperiod;
+		if ((ftimer > debounce_time) && (feed_debounce != feed_value))
+		{
+			ftimer = 0;
+			feed_value = feed_debounce;
+			rtapi_print_msg(RTAPI_MSG_INFO, "New FP Feed Override: 0x%X\n", feed_value);
+		}
+	}
+	
+	//rapid-override decoding
+	switch (rapid_value)
+	{
+		case 1:  //0 setting
+			rapid_analog_enable = 0;
+			rapid_out = 0;
+			break;
+		case 2:  //1 setting
+			rapid_analog_enable = 1;
+			rapid_out = 0.01 * rapid_scale;
+			break;
+		case 3:  //25 setting
+			rapid_analog_enable = 1;
+			rapid_out = 0.25 * rapid_scale;
+			break;
+		case 0:  //100 setting
+			rapid_analog_enable = 1;
+			rapid_out = 1 * rapid_scale;
+			break;
+		default:
+			rapid_analog_enable = 0;
+			rapid_out = 1;
+	}
+	
+	//spindle override decoding
+	spindle_analog_enable = 1;
+	switch (spindle_value)
+	{
+		case 1:
+			spindle_out = 0.0 * spindle_scale;
+			break;
+		case 2:
+			spindle_out = 0.2 * spindle_scale;
+			break;
+		case 3:
+			spindle_out = 0.3 * spindle_scale;
+			break;
+		case 4:
+			spindle_out = 0.4 * spindle_scale;
+			break;
+		case 5:
+			spindle_out = 0.5 * spindle_scale;
+			break;
+		case 6:
+			spindle_out = 0.6 * spindle_scale;
+			break;
+		case 7:
+			spindle_out = 0.7 * spindle_scale;
+			break;
+		case 8:
+			spindle_out = 0.8 * spindle_scale;
+			break;
+		case 9:
+			spindle_out = 1 * spindle_scale;
+			break;
+		default:
+			spindle_out = 0.5 * spindle_scale;
+	}
+	
+	//Feedrate override
+	switch (feed_value)
+	{
+		case 0:
+			feed_analog_enable = 1;
+			feed_out = 2 * feed_scale;
+			break;
+		case 1:
+			feed_analog_enable = 0;
+			feed_out = 0.01 * feed_scale;
+			break;
+		case 2:
+			feed_analog_enable = 1;
+			feed_out = 0.1 * feed_scale;
+			break;
+		case 3:
+			feed_analog_enable = 1;
+			feed_out = 0.5 * feed_scale;
+			break;
+		case 4:
+			feed_analog_enable = 1;
+			feed_out = 0.8 * feed_scale;
+			break;
+		case 5:
+			feed_analog_enable = 1;
+			feed_out = 0.9 * feed_scale;
+			break;
+		case 6:
+			feed_analog_enable = 1;
+			feed_out = 1 * feed_scale;
+			break;
+		case 7:
+			feed_analog_enable = 1;
+			feed_out = 1.1 * feed_scale;
+			break;
+		case 8:
+			feed_analog_enable = 1;
+			feed_out = 1.2 * feed_scale;
+			break;
+		case 9:
+			feed_analog_enable = 1;
+			feed_out = 1.5 * feed_scale;
+			break;
+		default:
+			feed_out = 1 * feed_scale;
+			feed_analog_enable = 0;
+	}
+}

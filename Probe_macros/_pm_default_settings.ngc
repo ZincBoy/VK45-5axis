@@ -1,0 +1,32 @@
+; set the default settings from the ini file
+o<_pm_default_settings> sub
+
+    ; renishaw standard variables
+    o100 if [#1 EQ 0]
+        #[#<_pma_setting_var>] = #<_ini[PROBE_MACRO]SETTING_VALUE>
+    o100 elseif [[#1 EQ 1] OR [#1 EQ 7]]
+        #[#<_pma_setting_var>] = #1
+    o100 else
+        (abort, Invalid setting value, should be 0 for ini, 3,19,7,23 for override, got #1)
+    o100 endif
+    #[#<_pma_position_zone>] =      #<_ini[PROBE_MACRO]POSITION_ZONE>
+    #[#<_pma_base_num>] =           #[#<_pma_cal_base>]
+    #[#<_pma_probe_feedrate>] =     #<_ini[PROBE_MACRO]PROBE_VELOCITY>
+    #[#<_pma_fast_feedrate>] =      #<_ini[PROBE_MACRO]FAST_VELOCITY>
+    
+    ; extended variables specific to this implementation
+    #<_pmm_settlingtime> =          #<_ini[PROBE_MACRO]PROBE_SETTLE>
+    #<_pmm_rapid_feedrate> =        #<_ini[PROBE_MACRO]RAPID_VELOCITY>
+    #<_pmm_search_distance> =       #<_ini[PROBE_MACRO]SEARCH_DISTANCE>
+    ; this could use _pma_position_zone but the way renishaw does this doesn't make sense to me
+    #<_pmm_backoff_distance> =      #<_ini[PROBE_MACRO]BACKOFF_DISTANCE>
+    #<_pmm_xy_clearance> =          #<_ini[PROBE_MACRO]FEATURE_CLEARANCE>
+    #<_pmm_default_probe_diameter> =#<_ini[PROBE_MACRO]PHYSICAL_PROBE_DIAMETER>
+    
+	;sane defaults if autocal has not been run
+	o200 if [#[#<_pma_cal_base> + #<_pma_cal_backoff>] le 0]
+		#[#<_pma_cal_base> + #<_pma_cal_backoff>] = #<_pmm_backoff_distance>
+	o200 endif
+	
+o<_pm_default_settings> endsub
+M2

@@ -1,0 +1,42 @@
+; switch calibration memory to the active memory
+
+o<_pm_switch_cal> sub
+
+    o100 if [#1 EQ 1]
+        ; first memory
+        #<basememadr> = #<_pma_cal_k1_base>
+        #<vecmemadr> = #<_pma_cal_k11_base>
+    o100 elseif [#1 EQ 2]
+        ;second memory
+        #<basememadr> = #<_pma_cal_k2_base>
+        #<vecmemadr> = #<_pma_cal_k12_base>
+    o100 elseif [#1 EQ 3]
+        ;third memory
+        #<basememadr> = #<_pma_cal_k3_base>
+        #<vecmemadr> = #<_pma_cal_k13_base>
+    o100 elseif [#1 EQ 4]
+        ;forth memory
+        #<basememadr> = #<_pma_cal_k4_base>
+        #<vecmemadr> = #<_pma_cal_k14_base>
+    o100 else
+        (abort, Invalid probe calibration memory selected, K must be 1 to 4, seperate vector storage not supported)
+    o100 endif
+
+    ;base memory
+    #[#<_pma_cal_base> + #<_pma_cal_xrad>] = #[#<basememadr> + #<_pma_cal_xrad>]
+    #[#<_pma_cal_base> + #<_pma_cal_yrad>] = #[#<basememadr> + #<_pma_cal_yrad>]
+    #[#<_pma_cal_base> + #<_pma_cal_xoff>] = #[#<basememadr> + #<_pma_cal_xoff>]
+    #[#<_pma_cal_base> + #<_pma_cal_yoff>] = #[#<basememadr> + #<_pma_cal_yoff>]
+    ;vector memory
+    #[#<_pma_cal_vec_base> + 0] = #[#<vecmemadr> + 0]
+    #[#<_pma_cal_vec_base> + 1] = #[#<vecmemadr> + 1]
+    #[#<_pma_cal_vec_base> + 2] = #[#<vecmemadr> + 2]
+    #[#<_pma_cal_vec_base> + 3] = #[#<vecmemadr> + 3]
+    #[#<_pma_cal_vec_base> + 4] = #[#<vecmemadr> + 4]
+    #[#<_pma_cal_vec_base> + 5] = #[#<vecmemadr> + 5]
+    #[#<_pma_cal_vec_base> + 6] = #[#<vecmemadr> + 6]
+    #[#<_pma_cal_vec_base> + 7] = #[#<vecmemadr> + 7]
+
+
+o<_pm_switch_cal> endsub
+M2

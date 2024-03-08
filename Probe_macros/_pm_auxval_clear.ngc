@@ -1,0 +1,14 @@
+; used to clear the auxilary words after a call is complete
+o <_pm_auxval_clear> sub
+
+    #<_pmm_auxval_d> = 0
+    #<_pmm_auxval_e> = 0
+    #<_pmm_auxval_i> = 0
+    #<_pmm_auxval_j> = 0
+    #<_pmm_auxval_k> = 0
+    #<_pmm_auxval_p> = 0
+    #<_pmm_auxval_q> = 0
+    #<_pmm_auxval_r> = 0
+
+o <_pm_auxval_clear> endsub
+M2

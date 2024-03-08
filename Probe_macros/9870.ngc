@@ -1,0 +1,41 @@
+o<9870> sub
+
+	; touch off all tools in the carosel
+	o010 if [exists[#<_ini[TOOLCHANGER]MAX_POCKETS>]]
+		#<maxpockets> = #<_ini[TOOLCHANGER]MAX_POCKETS>
+	o010 else
+		(abort, G65 P#1, TOOLCHANGER:MAX_POCKETS not defined in INI)
+	o010 endif
+
+	; disable tool offsets during this process
+	G49
+
+	;start from the tool in the spindle
+	#<count> = 0
+
+	o100 while [#<count> le #<maxpockets>]
+		; read the tool number in the selected pocket
+		G10.1 P[#<count>] Q1
+		
+		o200 if [#<_read_tool_table_number> gt 0]
+			o210 if [#<count>]
+				; change to the tool
+				T[#<_read_tool_table_number>]
+				M6
+			o210 endif
+			
+			; touch off the tool
+			o<9857> call [#1 + 0.1]
+			
+			o<_pm_check_error> call [#1 + 0.2]
+
+		o200 endif
+		
+		#<count> = [#<count> + 1]
+	
+	o100 endwhile
+
+	G43
+
+o<9870> endsub [0]
+M2

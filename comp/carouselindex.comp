@@ -1,0 +1,43 @@
+component carouselindex "generates the index pulse from pa and pb when one hole is plugged";
+pin in bit pa;
+pin in bit pb;
+pin out bit index;
+pin out bit pulse;
+
+variable int lastpa = 0;
+variable float timer = 0;
+variable int ready = 0;
+
+author "alex lait";
+license "GPL";
+function _;
+
+;;
+
+FUNCTION(_){
+
+	timer += fperiod;
+	if (timer > 0.5) {
+		timer = 0;
+		ready = 1;	
+	}
+	
+	pulse = pa & pb;
+
+	if (ready) {
+		if (!lastpa && pa) {
+			// rising edge of pa
+			if (pb) {
+				//is index as pb should always be low before pa
+				index = 1;
+				//rtapi_print_msg(RTAPI_MSG_ERR,"got carousel index\n");
+
+			}
+		} else if (!pa) {
+			index = 0;
+		}
+	}
+
+	lastpa = pa;
+
+}

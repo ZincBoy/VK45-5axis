@@ -1,0 +1,74 @@
+;sanity check the cal data
+; allows for a max of 20% variation from the average for the probe radius
+o<_pm_cal_check> sub
+
+    #<mode> = #1
+
+    #<chkerr> = 0
+    #<r0> = #[#<_pma_cal_base> + #<_pma_cal_xrad>]
+    #<r1> = #[#<_pma_cal_base> + #<_pma_cal_yrad>]
+    #<r2> = #[#<_pma_cal_vec_base> + 0]
+    #<r3> = #[#<_pma_cal_vec_base> + 1]
+    #<r4> = #[#<_pma_cal_vec_base> + 2]
+    #<r5> = #[#<_pma_cal_vec_base> + 3]
+    #<r6> = #[#<_pma_cal_vec_base> + 4]
+    #<r7> = #[#<_pma_cal_vec_base> + 5]
+    #<r8> = #[#<_pma_cal_vec_base> + 6]
+    #<r9> = #[#<_pma_cal_vec_base> + 7]
+
+    o10 if [#<_pmm_error_status> NE 0]
+        o<_pm_cal_check> return [-1]
+    o10 endif
+
+    o100 if [#<mode> EQ 0]
+        ;xy cal only
+        #<ravg> = [[#<r0> + #<r1>] / 2]
+    o100 elseif [#<mode> EQ 1]
+        ;full vector cal
+        #<ravg> = [[#<r1> + #<r2> + #<r3> + #<r4> + #<r5> + #<r6> + #<r7> + #<r8> + #<r9>] / 10]
+        o110 if [[#<r2> LE [#<ravg> * .8]] OR [#<r2> GE [#<ravg> * 1.2]]]
+            #<chkerr> = [#<chkerr> + 4]
+        o110 endif
+        o120 if [[#<r3> LE [#<ravg> * .8]] OR [#<r3> GE [#<ravg> * 1.2]]]
+            #<chkerr> = [#<chkerr> + 8]
+        o120 endif
+        o130 if [[#<r4> LE [#<ravg> * .8]] OR [#<r4> GE [#<ravg> * 1.2]]]
+            #<chkerr> = [#<chkerr> + 16]
+        o130 endif
+        o140 if [[#<r5> LE [#<ravg> * .8]] OR [#<r5> GE [#<ravg> * 1.2]]]
+            #<chkerr> = [#<chkerr> + 32]
+        o140 endif
+        o150 if [[#<r6> LE [#<ravg> * .8]] OR [#<r6> GE [#<ravg> * 1.2]]]
+            #<chkerr> = [#<chkerr> + 64]
+        o150 endif
+        o160 if [[#<r7> LE [#<ravg> * .8]] OR [#<r7> GE [#<ravg> * 1.2]]]
+            #<chkerr> = [#<chkerr> + 128]
+        o160 endif
+        o170 if [[#<r8> LE [#<ravg> * .8]] OR [#<r8> GE [#<ravg> * 1.2]]]
+            #<chkerr> = [#<chkerr> + 256]
+        o170 endif
+        o180 if [[#<r9> LE [#<ravg> * .8]] OR [#<r9> GE [#<ravg> * 1.2]]]
+            #<chkerr> = [#<chkerr> + 512]
+        o180 endif
+    o100 endif
+
+    o190 if [[#<r0> LE [#<ravg> * .8]] OR [#<r0> GE [#<ravg> * 1.2]]]
+        #<chkerr> = [#<chkerr> + 1]
+    o190 endif
+    o200 if [[#<r1> LE [#<ravg> * .8]] OR [#<r1> GE [#<ravg> * 1.2]]]
+        #<chkerr> = [#<chkerr> + 2]
+    o200 endif
+    
+    o210 if [#<ravg> LE 0]
+        #<chkerr> = [#<chkerr> + 1024]
+    o210 endif
+    
+    o220 if [#<chkerr>]
+        #<_pmm_error_status> = -130
+        (print, Probe cal data sanity check failed. Result: #<chkerr>)
+        o<_pm_cal_check> return [-1]
+    o220 endif
+
+o<_pm_cal_check> endsub [0]
+M2
+

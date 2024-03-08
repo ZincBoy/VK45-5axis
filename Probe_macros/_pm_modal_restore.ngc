@@ -1,0 +1,70 @@
+; restore modal status
+o<_pm_modal_restore> sub
+
+    o010 if [#<_pmm_modal_store> EQ 0]
+        o<_pm_modal_restore> return [0]
+    o010 endif
+
+    o100 if [#<_pmm_modal_abs>]
+        G90
+    o100 endif
+    o105 if [#<_pmm_modal_incremental>]
+        G91
+    o105 endif
+;    o110 if [#<_pmm_modal_invtime>]
+;        G93
+;    o110 endif
+;    o120 if [#<_pmm_modal_upm>]
+;        G94
+;    o120 endif
+;    o130 if [#<_pmm_modal_upr>]
+;        G95
+;    o130 endif
+    o140 if [#<_pmm_modal_arcdist>]
+        G90.1
+    o140 else
+        G91.1
+    o140 endif
+	
+	o145 if [#<_pmm_modal_inch>]
+		G20
+	o145 else
+		G21
+	o145 endif
+
+	o150 if [#<_pmm_modal_coord_system> EQ 540]
+		G54
+	o150 elseif [#<_pmm_modal_coord_system> EQ 550]
+		G55
+	o150 elseif [#<_pmm_modal_coord_system> EQ 560]
+		G56
+	o150 elseif [#<_pmm_modal_coord_system> EQ 570]
+		G57
+	o150 elseif [#<_pmm_modal_coord_system> EQ 580]
+		G58
+	o150 elseif [#<_pmm_modal_coord_system> EQ 590]
+		G59
+	o150 elseif [#<_pmm_modal_coord_system> EQ 591]
+		G59.1
+	o150 elseif [#<_pmm_modal_coord_system> EQ 591]
+		G59.2
+	o150 elseif [#<_pmm_modal_coord_system> EQ 593]
+		G59.3
+	o150 endif
+		
+		
+    o160 if [EXISTS[#<_pmm_modal_feed>]]
+        F#<_pmm_modal_feed>
+    o160 endif
+
+    ; this is done here as this function is called before an abort
+    ;o160 if [#<_ini[PROBE_MACRO]STICKY_AUX>]
+    ;o160 else
+        o<_pm_auxval_clear> call
+    ;o160 endif
+
+    #<_pmm_modal_store> = 0
+
+o<_pm_modal_restore> endsub [0]
+M2
+

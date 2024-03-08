@@ -1,0 +1,63 @@
+o<_pm_ts_set_rpm> sub
+    ; calculates and sets the spindle rpm for tool setter probing depending on the tool diameter
+    
+    #<diameter> = #1
+    #<searchmode> = #2
+    #<orientmode> = #3
+    #<angle> = #4
+    
+    #<setrpm> = 0
+
+
+    (print, ts_set_rpm call)
+    
+    o100 if [#<diameter> LT 0]
+        #<dir> = -1
+        #<diameter> = abs[#<diameter>]
+    o100 elseif [#<diameter> GT 0]
+        #<dir> = 1
+    o100 else
+        #<dir> = 0
+    o100 endif
+    
+    o200 if [#<searchmode>]
+        #<setrpm> = #<_ini[TOOLSENSOR]FINE_SEARCH_RPM>
+        F[#<_ini[TOOLSENSOR]FINE_SEARCH_FEED>]
+    o200 elseif [#<diameter> GT 0]
+        o210 if [#<diameter> LT #<_ini[TOOLSENSOR]MIN_SCALE_TOOL_DIA>]
+            #<setrpm> = #<_ini[TOOLSENSOR]MAX_SEARCH_RPM>
+        o210 elseif [#<diameter> GT #<_ini[TOOLSENSOR]MAX_SCALE_TOOL_DIA>]
+            #<setrpm> = #<_ini[TOOLSENSOR]MIN_SEARCH_RPM>
+        o210 else
+            #<slope> = [[#<_ini[TOOLSENSOR]MIN_SEARCH_RPM> - #<_ini[TOOLSENSOR]MAX_SEARCH_RPM>] / [#<_ini[TOOLSENSOR]MAX_SCALE_TOOL_DIA> - #<_ini[TOOLSENSOR]MIN_SCALE_TOOL_DIA>]]
+            #<intercept> = [-#<_ini[TOOLSENSOR]MAX_SCALE_TOOL_DIA> * #<slope> + #<_ini[TOOLSENSOR]MIN_SEARCH_RPM>]
+            #<setrpm> = [#<slope> * #<diameter> + #<intercept>]
+        o210 endif
+        F[#<_ini[TOOLSENSOR]COARSE_SEARCH_FEED> * #<setrpm>]
+    o200 else
+        F[#<_ini[TOOLSENSOR]COARSE_SEARCH_FEED> * #<_ini[TOOLSENSOR]MAX_SEARCH_RPM>]
+    o200 endif
+    
+    o300 if [#<orientmode> and [#<searchmode> EQ 0]]
+        ; orient spindle mode
+    (print, ts_set_rpm orient)
+        M19 R[#<angle>] Q10
+    o300 elseif [#<orientmode> and #<searchmode>]
+        ; do nothing
+    (print, ts_set_rpm no change)
+    o300 elseif [#<dir> EQ 1]
+        ; right hand tool so spin left
+        M4 S[#<setrpm>]
+    (print, ts_set_rpm right hand set rpm)
+    o300 elseif [#<dir> EQ -1]
+        ; left hand tool so spin right
+        M3 S[#<setrpm>]
+    (print, ts_set_rpm left hand set rpm)
+    o300 else
+        ; non-rotating probe
+        M5
+    (print, ts_set_rpm spindel off)
+    o300 endif
+
+o<_pm_ts_set_rpm> endsub [0]
+M2

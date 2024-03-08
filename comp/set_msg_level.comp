@@ -1,0 +1,17 @@
+component set_msg_level;
+license "GPL v2+";
+author "andypugh";
+option extra_setup;
+pin out unsigned level;
+function _;
+
+;;
+
+EXTRA_SETUP(){
+    rtapi_set_msg_level(5);
+}
+
+FUNCTION(_){
+    rtapi_set_msg_level(5);
+    level = 5;
+}

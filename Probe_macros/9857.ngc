@@ -1,0 +1,42 @@
+o<9857> sub
+; Auto tool probe
+;   j [b] - 1 = length [default], 2 = diameter only, 3 = length and diameter
+;   d     - Reference tool diameter, + for right, - for left
+;   k     - experience value for length
+;     [e] - tool radius offset number - not used
+;   r     - overtravel distance
+;     [t] - tool offset number, we will only use the active tool
+;   q     - probe overtravel 4mm default
+;   z     - position for diameter measurement - for non-square edges
+;   i     - size adjustment 0.01 sets the radius small by 0.01 of the probed value
+
+	; turn on the probe
+	o<9852> call [#1]
+    (print, 9857 probe turned on)
+
+    o<_pm_check_probe_state> call [1]
+    (print, 9857 checked probe state)
+    
+	o<_pm_ts_parse_words> call
+	(print, 9857 parsed probe words)
+
+	o<_pm_ts_auto_move> call
+	#<automode> = #<_value>
+	(print, 9857 auto move complete)
+	
+    o100 if [#<automode>]
+        (abort, auto tool touch off not supported without fixed tool sensor)
+    o100 endif
+	
+    ; auto mode
+    o<_pm_ts_toolprobe> call [#1] [1] [0]
+    (print, 9857 completed probe)
+
+	; turn the probe off
+	o<9853> call
+	(print, 9857 probe turned off)
+
+    G53 G0 Z[#<_ini[PROBE_MACRO]Z_SAFE_TRAVEL_OFFSET>]
+
+o<9857> endsub [0]
+M2

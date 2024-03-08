@@ -1,0 +1,24 @@
+; T# override for VK45 mill.
+
+o<toolprepare_override> sub
+(print, o<toolprepare>)
+
+; We must execute this only in the milltask interpreter
+; or preview will break, so test for '#<_task>' which is 1 for
+; the milltask interpreter and 0 in the UI's
+O100 if [#<_task> EQ 0]
+    O100 return [999]
+O100 endif
+
+o110 if [#<pocket> gt #<_ini[TOOLCHANGER]MAX_POCKETS>]
+    o110 return [-100]
+o110 endif
+
+(print, pocket:#<pocket>  tool:#<tool>)
+
+; all the heavy lifting is done in the VK45toolchange.comp
+T[#<tool>]
+
+; signal success by returning a value > 0:
+o<toolprepare_override> endsub [#<pocket>]
+m2

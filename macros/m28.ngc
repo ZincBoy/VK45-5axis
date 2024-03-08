@@ -1,0 +1,22 @@
+;M28 remap
+
+o<m28> sub
+
+     #<aimed_pin> = #<_ini[COOLANT]AIMED_PIN>
+     #<wash_pin> = #<_ini[COOLANT]WASH_PIN>
+
+    o100 if [exists[#<p>]]
+        o110 if [#<p> EQ 0]
+            M8
+        o110 elseif [#<p> EQ 1]
+            M64 P#<aimed_pin>
+        o110 elseif [#<p> EQ 2]
+            M64 P#<wash_pin>
+        o110 endif
+    o100 else
+        M8
+    o100 endif
+
+
+o<m28> endsub [0]
+M2

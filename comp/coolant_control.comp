@@ -1,0 +1,152 @@
+component coolant_control "logic for coolant valves";
+pin in    bit   flood-enable;
+pin in    bit   aimed-enable;
+pin in    bit   washdown-enable;
+pin in    bit   machine-enable;
+pin out   bit   pump-on;
+pin out   bit   flood-valve;
+pin out   bit   aimed-valve;
+pin out   bit   washdown-valve;
+pin out   bit   purge-valve;
+
+//HALUI emulation
+pin in    bit   flood-on;
+pin in    bit   flood-off;
+pin out   bit   flood-is-on;
+
+pin in    bit   aimed-on;
+pin in    bit   aimed-off;
+pin out   bit   aimed-is-on;
+
+pin in    bit   washdown-on;
+pin in    bit   washdown-off;
+pin out   bit   washdown-is-on;
+
+pin out   s32   stateval;
+
+param rw float purge-period = 10.0;
+
+variable  int   currentstate = 0;
+
+variable  float timer = 0;
+
+variable int last_flood = 0;
+variable int last_aimed = 0;
+variable int last_wash = 0;
+variable int flood_start = 0;
+variable int aimed_start = 0;
+variable int wash_start = 0;
+
+author "alex lait";
+license "GPL";
+function _;
+
+;;
+
+enum StateVals {
+     machine_disabled = 0,
+     coolant_wait = 1,
+     coolant_on = 2,
+     coolant_purge = 3,
+     };
+
+
+FUNCTION(_){
+
+	int coolantenable = 0;
+	int coolantdisable = 0;
+	
+	stateval = currentstate;
+	timer += fperiod;
+	
+	//edge trigger on flood_enable, and pulse for front panel
+	if ((flood_enable & !last_flood) | flood_on)
+	    flood_start = 1;
+	if ((!flood_enable & last_flood) | flood_off)
+        flood_start = 0;
+	last_flood = flood_enable;
+	flood_is_on = flood_start;
+	
+	if ((aimed_enable & !last_aimed) | aimed_on)
+	    aimed_start = 1;
+	if ((!aimed_enable & last_aimed) | aimed_off)
+        aimed_start = 0;
+	last_aimed = aimed_enable;
+	aimed_is_on = aimed_start;
+
+	if ((washdown_enable & !last_wash) | washdown_on)
+	    wash_start = 1;
+	if ((!washdown_enable & last_wash) | washdown_off)
+        wash_start = 0;
+	last_wash = washdown_enable;
+	washdown_is_on = wash_start;
+
+	coolantenable = flood_start | aimed_start | wash_start;
+	coolantdisable = !flood_start & !aimed_start & !wash_start;
+	
+	switch (currentstate)
+	{
+		case machine_disabled:
+		    pump_on = 0;
+		    flood_valve = 0;
+		    aimed_valve = 0;
+		    purge_valve = 0;
+			if (machine_enable)
+			{
+			    currentstate = coolant_wait;
+			}
+			break;
+		
+		case coolant_wait:
+		    pump_on = 0;
+		    flood_valve = 0;
+		    aimed_valve = 0;
+		    purge_valve = 0;
+		    if (coolantenable)
+		    {
+		        currentstate = coolant_on;
+		    }
+			break;
+		
+		case coolant_on:
+		    pump_on = 1;
+		    flood_valve = flood_start;
+		    aimed_valve = aimed_start;
+		    purge_valve = 0;
+		    if (coolantdisable)
+		    {
+		        timer = 0;
+		        currentstate = coolant_purge;
+		    }
+		    if (!machine_enable)
+		    {
+		        currentstate = machine_disabled;
+		    }
+		    break;
+
+		case coolant_purge:
+		    pump_on = 1;
+		    flood_valve = 0;
+		    aimed_valve = 0;
+		    purge_valve = 1;
+		    if (coolantenable)
+		    {
+		        currentstate = coolant_on;
+		    }
+		    if (timer > purge_period)
+		    {
+		        currentstate = coolant_wait;
+		    }
+		    if (!machine_enable)
+		    {
+		        currentstate = machine_disabled;
+		    }
+		    break;
+		    
+		default:
+			currentstate = machine_disabled;
+	}
+	
+
+
+}

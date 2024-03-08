@@ -1,0 +1,170 @@
+; G65 remap for Renishaw style probe macros
+
+o<g65> sub
+    	
+	o20 if [#<_units_per_minute>]
+	o20 else
+		(abort, Feedmode must be units per minute to use probe functions)
+	o20 endif
+
+    ; save modal state
+    o<_pm_modal_check> call
+
+    ; create the memory pointers if they don't already exist
+    o100 if [EXISTS[#<_pma_base_num>]]
+    o100 else
+        o<_pm_mem_loc> call
+    o100 endif
+
+    ; clear the error register
+    #<_pmm_error_status> = 0
+    ; clear probe error and status flags
+    o<_pm_clear_flags> call
+    
+    o110 if [exists[#<p>]]
+        o120 if [#<p> EQ 9000]
+            #<extended_value_call> = 1
+        o120 else
+            #<extended_value_call> = 0
+        o120 endif
+    o110 else
+		; should never get here unless the argspec in the ini file is wrong
+        (abort, P word required in G65 call)
+    o110 endif
+
+    ; check and copy gcode word values to global registers
+    o<_pm_clear_words> call [#<extended_value_call>]
+
+    o200 if [exists[#<x>]]
+        #<_pv_got_x> = 1
+        #<_pv_x> = [#<x> * #<_pmm_scale>]
+    o200 endif
+    o201 if [exists[#<y>]]
+        #<_pv_got_y> = 1
+        #<_pv_y> = [#<y> * #<_pmm_scale>]
+    o201 endif
+    o202 if [exists[#<z>]]
+        #<_pv_got_z> = 1
+        #<_pv_z> = [#<z> * #<_pmm_scale>]
+    o202 endif
+    o203 if [exists[#<a>]]
+        #<_pv_got_a> = 1
+        #<_pv_a> = #<a>
+    o203 endif
+    o204 if [exists[#<b>]]
+        #<_pv_got_b> = 1
+        #<_pv_b> = #<b>
+    o204 endif
+    o205 if [exists[#<c>]]
+        #<_pv_got_c> = 1
+        #<_pv_c> = #<c>
+    o205 endif
+    o206 if [exists[#<f>]]
+        #<_pv_got_f> = 1
+        #<_pv_f> = [#<f> * #<_pmm_scale>]
+    o206 endif
+    o210 if [exists[#<u>]]
+        #<_pv_got_u> = 1
+        #<_pv_u> = [#<u> * #<_pmm_scale>]
+    o210 endif
+    o211 if [exists[#<v>]]
+        #<_pv_got_v> = 1
+        #<_pv_v> = [#<v> * #<_pmm_scale>]
+    o211 endif
+    o212 if [exists[#<w>]]
+        #<_pv_got_w> = 1
+        #<_pv_w> = [#<w> * #<_pmm_scale>]
+    o212 endif
+    
+        
+    o300 if [#<extended_value_call>]
+
+        o350 if [exists[#<d>]]
+            #<_pv_got_ext_d> = 1
+            #<_pv_ext_d> = [#<d> * #<_pmm_scale>]
+        o350 endif
+        o351 if [exists[#<e>]]
+            #<_pv_got_ext_e> = 1
+            #<_pv_ext_e> = #<e>
+        o351 endif
+        o352 if [exists[#<i>]]
+            #<_pv_got_ext_i> = 1
+            #<_pv_ext_i> = [#<i> * #<_pmm_scale>]
+        o352 endif
+        o353 if [exists[#<j>]]
+            #<_pv_got_ext_j> = 1
+            #<_pv_ext_j> = [#<j> * #<_pmm_scale>]
+        o353 endif
+        o354 if [exists[#<k>]]
+            #<_pv_got_ext_k> = 1
+            #<_pv_ext_k> = #<k>
+        o354 endif
+        o355 if [exists[#<q>]]
+            #<_pv_got_ext_q> = 1
+            #<_pv_ext_q> = #<q>
+        o355 endif
+        o356 if [exists[#<r>]]
+            #<_pv_got_ext_r> = 1
+            #<_pv_ext_r> = #<r>
+        o356 endif
+
+    o300 else
+
+        o400 if [exists[#<d>]]
+            #<_pv_got_d> = 1
+            #<_pv_d> = [#<d> * #<_pmm_scale>]
+        o400 endif
+        o401 if [exists[#<e>]]
+            #<_pv_got_e> = 1
+            #<_pv_e> = [#<e> * #<_pmm_scale>]
+        o401 endif
+        o402 if [exists[#<i>]]
+            #<_pv_got_i> = 1
+			; requires scaling in appropriate functions
+            #<_pv_i> = #<i>
+        o402 endif
+        o403 if [exists[#<j>]]
+            #<_pv_got_j> = 1
+			; requires scaling in appropriate functions
+            #<_pv_j> = #<j>
+        o403 endif
+        o404 if [exists[#<k>]]
+            #<_pv_got_k> = 1
+			; requires scaling in appropriate functions
+            #<_pv_k> = #<k>
+        o404 endif
+        o405 if [exists[#<q>]]
+            #<_pv_got_q> = 1
+            #<_pv_q> = [#<q> * #<_pmm_scale>]
+        o405 endif
+        o406 if [exists[#<r>]]
+            #<_pv_got_r> = 1
+            #<_pv_r> = [#<r> * #<_pmm_scale>]
+        o406 endif
+    
+    o300 endif
+    
+	o<_pm_parse_words> call [#<p>]
+
+    o500 if [#<extended_value_call>]
+        ; extended call just stores the values for the main call
+		o<_pm_clear_words> call [0]
+    o500 else
+
+		(print, set offset: #<_pv_set_offset>)
+
+        ; call the subroutine
+        o[#<p>] call [#<p>]
+        
+        ;clear all config words
+        o<_pm_clear_words> call [1]
+    o500 endif
+    
+    o<_pm_modal_restore> call
+    #<_pmm_modal_store> = 0
+
+    o<_pm_check_error> call [#<p>]
+    
+o<g65> endsub [0]
+M2
+

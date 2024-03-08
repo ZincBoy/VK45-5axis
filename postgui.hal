@@ -1,0 +1,49 @@
+
+net spindle-vel-fb-rpm-abs   =>  gmoccapy.spindle_feedback_bar
+net spindle-at-speed         =>  gmoccapy.spindle_at_speed_led
+
+net fp-turtle        =>  gmoccapy.jog.turtle-jog
+net fp-jog-vel       =>  gmoccapy.jog.jog-velocity.direct-value
+net fp-jog-vel-en    =>  gmoccapy.jog.jog-velocity.analog-enable
+
+net fp-jog-step-0    =>  gmoccapy.jog.jog-inc-0
+net fp-jog-step-1    =>  gmoccapy.jog.jog-inc-4
+net fp-jog-step-2    =>  gmoccapy.jog.jog-inc-3
+net fp-jog-step-3    =>  gmoccapy.jog.jog-inc-2
+net fp-jog-step-4    =>  gmoccapy.jog.jog-inc-1
+
+net fp-rapid-val     =>  gmoccapy.rapid.rapid-override.direct-value
+net fp-rapid-en      =>  gmoccapy.rapid.rapid-override.analog-enable
+
+net fp-feed-over     =>  gmoccapy.feed.feed-override.direct-value
+net fp-feed-en       =>  gmoccapy.feed.feed-override.analog-enable
+
+net fp-spindle-over  =>  gmoccapy.spindle.spindle-override.direct-value
+net fp-spindle-en    =>  gmoccapy.spindle.spindle-override.analog-enable
+
+net fp-jog-xp        =>  gmoccapy.jog.axis.jog-x-plus
+net fp-jog-xn        =>  gmoccapy.jog.axis.jog-x-minus
+net fp-jog-yp        =>  gmoccapy.jog.axis.jog-y-plus
+net fp-jog-yn        =>  gmoccapy.jog.axis.jog-y-minus
+net fp-jog-zp        =>  gmoccapy.jog.axis.jog-z-plus
+net fp-jog-zn        =>  gmoccapy.jog.axis.jog-z-minus
+net fp-jog-ap        =>  gmoccapy.jog.axis.jog-a-plus
+net fp-jog-an        =>  gmoccapy.jog.axis.jog-a-minus
+
+net tooloffset-x         gmoccapy.tooloffset-x  <=  motion.tooloffset.x
+net tooloffset-z         gmoccapy.tooloffset-z  <=  motion.tooloffset.z
+
+net gui-error            <=  gmoccapy.error
+net gui-delete-msg       =>  gmoccapy.delete-message
+
+# load userspace components
+
+# load the drive modbus configuration
+loadusr -W mb2hal config=mb2hal.ini
+net spindle-pulseMode    => mb2hal.pulseMode.00
+net spindle-pulseGear1   => mb2hal.gearRatio.00
+net spindle-pulseGear2   => mb2hal.gearRatio.01
+net spindle-pulseModeOut <= mb2hal.pulseModeOut.00.int
+net spindle-load         <= mb2hal.monitorOut.00.int
+
+

@@ -1,0 +1,11 @@
+o<9833> sub
+
+    ; probe off
+    o100 if [#<_pv_got_d> OR #<_pv_got_e> OR #<_pv_got_f> OR #<_pv_got_i> OR #<_pv_got_j> OR #<_pv_got_k> OR #<_pv_got_q> OR #<_pv_got_r>]
+       (abort, Invalid word in G65 P9833)
+    o100 endif
+
+    o<_pm_probe_power> call [0]
+
+o<9833> endsub
+M2

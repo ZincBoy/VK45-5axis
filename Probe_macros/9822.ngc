@@ -1,0 +1,73 @@
+o<9822> sub
+    ;vector web or pocket measure
+	;  implemented
+	;  |  renishaw standard
+	;  |  |
+	;  D  D  web distance
+	;  I  A  orthognal angle to web or pocket
+	;  z  z  absolute probe level, if set will do a web probe
+	;  e  h  +/- tolerance value for dimension
+	;  r  r  clearance overide, set to negative for pocket web probe
+	;  q  q  probe overtravel (past target point)
+	;  |  |
+	;  |  | Values set with extended g65 p9000 pre call
+	;  e  e  Experience value - tool offset containing correction factor
+	;  k  f  pecent of error to use to update tool offset
+	;  q  s  number of work offset to be updated
+	;  d  m  true position error allowance
+	;  r  t  tool number to update offset
+	;  i  u  upper tolerance for tool offset update, alarm if over this value
+	;  j  v  null band, no tool offset update is done if the error is in this band
+	;     w  print the output data NOT IMPLEMENTED
+    
+	#<p> = #1
+    #<z> = #<_pv_z>
+    #<zdown> = 0
+    
+    o100 if [#<_pv_got_i> and #<_pv_got_dimension>]
+    o100 else
+        (abort, Both I and D words required in P#<P> vector probe cycle)
+    o100 endif
+	
+	o110 if [#<_pv_got_z> and #<_pv_got_clearance>]
+		o115 if [#<_pv_clearance> lt 0]
+			; internal bore with zdown
+			#<direction> = -1
+			#<zdown> = 1
+		o115 else
+			; boss with clearance override
+			#<direction> = 1
+			#<zdown> = 1
+		o115 endif
+	o110 elseif [#<_pv_got_z>]
+		; boss with no clearance override
+		#<direction> = 1
+		#<zdown> = 1
+	o110 else
+		; bore
+		o117 if [#<_pv_got_clearance> and [#<_pv_clearance> lt 0]]
+			(abort, Clearance may not be less than zero without Z word, P#<p>)
+		o117 endif
+		#<direction> = -1
+		#<z> = 0
+	o110 endif
+	
+
+    #<startx> = #<_x>
+    #<starty> = #<_y>
+    
+    ;must have vector cal
+    o<_pm_cal_check> call [1]
+
+    o<_pm_check_probe_state> call [0]
+
+    o<_pm_probe_angle_web> call [#<_pv_i>] [#<_pv_dimension>] [#<_pv_clearance>] [#<z>] [#<zdown>] [#<_pv_search_dist>]
+
+    o<_pm_check_tolerance> call [4] [#<startx>] [#<starty>] [#<_pv_dimension>] [0] [0] [0] [#<_pv_dimtol>] [#<_pv_tpe_tol>]
+    
+    o<_pm_set_workoffset> call [#<_pv_set_offset>] [#<_pv_offset_num>] [1] [1] [0] [#[#<_pma_xerr>]] [#[#<_pma_yerr>]] [0]
+    
+    o<_pm_set_tooloffset> call [#<_pv_set_tool>] [#<_pv_tool_num>] [0] [0] [0] [1] [0]
+
+o<9822> endsub [0]
+M2

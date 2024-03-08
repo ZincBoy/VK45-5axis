@@ -1,0 +1,112 @@
+o<_pm_ts_parse_words> sub
+
+    #<_pv_ts_overtravel> = #<_ini[TOOLSENSOR]OVERTRAVEL>
+    #<_pv_ts_probe_overtravel> = #<_ini[TOOLSENSOR]PROBE_OVERTRAVEL>
+    #<max_tool_dia> = #<_ini[TOOLSENSOR]MAX_TOOL_DIA>
+	#<_pv_ts_dia_allowed> = #<_ini[TOOLSENSOR]ALLOW_DIAMETER>
+	#<_pv_ts_cal_axis> = #<_ini[TOOLSENSOR]CAL_AXIS>
+    #<max_tool_dia_d> = #<_ini[TOOLSENSOR]MAX_TOOL_DIA_D>
+    #<_pv_ts_z_depth> = #<_ini[TOOLSENSOR]D_Z_DEPTH>
+	#<_pv_ts_bidir> = #<_ini[TOOLSENSOR]BIDIRECTIONAL_SENSOR>
+	#<_pv_ts_latch_distance> = #<_ini[TOOLSENSOR]LATCH_DISTANCE>
+	#<_pv_ts_max_pos_error> = #<_ini[TOOLSENSOR]MAX_POS_ERROR>
+	#<_pv_ts_z_safe_height> = #<_ini[TOOLSENSOR]Z_SAFE_HEIGHT>
+    #<_pv_ts_radius_adjust> = 0
+    
+    #<_pv_ts_meas_dia> = 0
+    #<_pv_ts_meas_length> = 0
+    #<_pv_ts_meas_pos> = 0
+    #<_pv_ts_ref_dia> = 0
+    
+    o100 if [#<_pv_got_j>]
+        o110 if [#<_pv_j> EQ 1]
+            ; length
+            #<_pv_ts_meas_length> = 1
+        o110 elseif [#<_pv_j> EQ 2]
+            ; diameter only
+            #<_pv_ts_meas_dia> = 1
+        o110 elseif [#<_pv_j> EQ 3]
+            ; length and diameter
+            #<_pv_ts_meas_length> = 1
+            #<_pv_ts_meas_dia> = 1
+		o110 elseif [#<_pv_j> EQ 4]
+			; everything
+            #<_pv_ts_meas_length> = 1
+            #<_pv_ts_meas_dia> = 1
+			#<_pv_ts_meas_pos> = 1
+        o110 else
+            (abort, Invalid J word)
+        o110 endif
+    o100 else
+        ; length - default
+        #<_pv_ts_meas_length> = 1
+    o100 endif
+
+	o120 if [#<_pv_ts_meas_length> and [#<_pv_ts_cal_axis> eq 0]]
+		(abort, Toolsetter calibration not allowed with CAL_AXIS = 0)
+	o120 endif
+	o130 if [#<_pv_ts_meas_dia> and [#<_pv_ts_cal_axis> lt 2] and [#<_pv_ts_dia_allowed> EQ 0]]
+		(abort, Tool diameter mesurement not allowed with CAL_AXIS less than 2 and ALLOW_DIAMETER = 0)
+	o130 endif
+	o140 if [#<_pv_ts_meas_pos> and [#<_pv_ts_cal_axis> lt 3] and [#<_pv_ts_bidir> EQ 0]]
+		(abort, Tool position mesurement not allowed with CAL_AXIS less than 3, BIDIRECTIONAL_PROBE = 0)
+	o140 endif
+	
+	o150 if [[#<_pv_ts_cal_axis> gt 3] or [#<_pv_ts_cal_axis> lt 0]]
+		(abort, TOOLSENSOR INI file CAL_AXIS must be between 0 and 3)
+	o150 endif
+
+    o200 if [#<_pv_got_d>]
+        #<_pv_ts_ref_dia> = #<_pv_d>
+    o200 else
+        #<_pv_ts_ref_dia> = #5410
+    o200 endif
+	
+    o210 if [#<_pv_got_e>]
+        #<_pv_ts_break_tol> = abs[#<_pv_e>]
+    o210 else
+        #<_pv_ts_break_tol> = 0
+    o210 endif
+	
+    o220 if [abs[#<_pv_ts_ref_dia>] GT #<max_tool_dia>]
+        (abort, Tool diameter greater than max allowed in INI)
+    o220 endif
+	
+    o230 if [[abs[#<_pv_ts_ref_dia>] gt #<max_tool_dia_d>] and #<_pv_ts_meas_dia>]
+        (abort, Tool diameter greater than max allowed for diameter measurement in INI)
+    o230 endif
+	
+    o240 if [[#<_pv_ts_ref_dia> EQ 0] and #<_pv_ts_meas_dia>]
+        (abort, Can't measure diameter with tool diameter set to 0)
+    o240 endif
+	
+    o250 if [#<_pv_got_k>]
+        #<_pv_ts_exp_num> = #<_pv_k>
+    o250 else
+        #<_pv_ts_exp_num> = 0
+    o250 endif
+	
+    o260 if [#<_pv_got_q>]
+        #<_pv_ts_probe_overtravel> = #<_pv_q>
+	o260 else
+		#<_pv_ts_probe_overtravel> = #<_pmm_search_distance>
+    o260 endif
+	
+    o270 if [#<_pv_got_r>]
+        #<_pv_ts_overtravel> = #<_pv_r>
+    o270 endif
+	
+    o280 if [#<_pv_got_z>]
+        #<_pv_ts_z_depth> = #<_pv_z>
+    o280 endif
+	
+    o290 if [#<_pv_got_i>]
+        #<_pv_ts_flag_broken_tool> = 1
+        #<_pv_ts_radius_adjust> = [#<_pv_i> * #<_pmm_scale>]
+    o290 else
+        #<_pv_ts_flag_broken_tool> = 0
+        #<_pv_ts_radius_adjust> = 0
+    o290 endif
+
+o<_pm_ts_parse_words> endsub [0]
+M2

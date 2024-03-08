@@ -1,0 +1,10 @@
+;M299 Safe retract for indexing and end of program
+o<m299> sub
+
+	o<simcheck> if [#<_task> NE 0]
+		G53 G0 Z[#<_ini[TOOLCHANGER]Z>]
+		G53 G0 Y[#<_ini[TOOLCHANGER]Y>]
+	o<simcheck> endif
+
+o<m299> endsub [0]
+M2

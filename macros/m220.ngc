@@ -1,0 +1,16 @@
+;M220 C axis brake on
+o<m220> sub
+
+	; set brake pin
+	M64 P#<_ini[AXIS_C]BRAKE_PIN>
+	
+	; wait on braked pin until true
+	M66 P#<_ini[AXIS_C]BRAKED_PIN> L3 Q#<_ini[AXIS_C]BRAKE_TIMEOUT>
+	
+	; error out if braking times out
+	o100 if [#5399 eq -1]
+		(abort, C axis brake engagement timed out)
+	o100 endif
+
+o<m220> endsub [0]
+M2

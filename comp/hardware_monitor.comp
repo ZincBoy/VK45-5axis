@@ -1,0 +1,130 @@
+component hardware_monitor "checks for hardware errors";
+
+pin in  bit gui-error;
+
+pin in  bit machine-is-on;
+
+pin in  bit spindle-overheat;
+pin in  bit brake-overheat;
+pin in  bit spindle-ready;
+pin in  bit spindle-fault;
+pin in  bit servo-pwr-alarm;
+pin in  bit servo-amp-overheat;
+pin in  bit lube-level-low;
+pin in  bit hyd-pump-on;
+pin in  bit hyd-pump-running;
+pin in  bit flood-pump-on;
+pin in  bit flood-pump-running;
+pin in  bit conveyor-on;
+pin in  bit conveyor-running;
+
+pin out bit hardware-error;
+pin out bit hardware-warn;
+
+param rw float contactor-switch-time = 0.5;
+
+variable float hyd_timer      = 0.0;
+variable float flood_timer    = 0.0;
+variable float conveyor_timer = 0.0;
+
+variable int   messagestate   = 0;
+
+author "alex lait";
+license "GPL";
+function _;
+
+;;
+
+FUNCTION(_){
+
+	//allow time for the contactors to switch
+	if (hyd_pump_on)
+		hyd_timer += fperiod;
+	else
+		hyd_timer = 0;
+
+	if (flood_pump_on)
+		flood_timer += fperiod;
+	else
+		flood_timer = 0;
+		
+	if (conveyor_on)
+		conveyor_timer += fperiod;
+	else
+		conveyor_timer = 0;
+
+	switch (messagestate)
+	{
+		case 0:
+			if (hardware_error || hardware_warn)
+				messagestate = 1;
+			break;
+		case 1:
+			//wait for gui to see message
+			if (gui_error)
+				messagestate = 2;
+			break;
+		case 2:
+			//wait until the message is cleared
+			if (!gui_error)
+			{
+				messagestate = 0;
+				hardware_error = 0;
+				hardware_warn = 0;
+			}
+			break;
+		default:
+			messagestate = 0;
+	}
+	
+	// check for errors and set gui messages
+	if (messagestate == 0 && machine_is_on)
+	{
+		if (spindle_overheat)
+		{
+			rtapi_print_msg(RTAPI_MSG_ERR, "Spindle Motor Overheat");
+			hardware_error = 1;
+		}
+		if (brake_overheat)
+		{
+			rtapi_print_msg(RTAPI_MSG_ERR, "Spindle Drive Brake Resistor Overheat");
+			hardware_error = 1;
+		}
+		if (spindle_fault && spindle_ready)
+		{
+			rtapi_print_msg(RTAPI_MSG_ERR, "Spindle Drive Fault");
+			hardware_error = 1;
+		}
+		if (servo_pwr_alarm)
+		{
+			rtapi_print_msg(RTAPI_MSG_ERR, "Servo Powersupply Fault");
+			hardware_error = 1;
+		}
+		if (servo_amp_overheat)
+		{
+			rtapi_print_msg(RTAPI_MSG_ERR, "Servo Amplifier Overheat");
+			hardware_error = 1;
+		}
+		if (lube_level_low)
+		{
+			rtapi_print_msg(RTAPI_MSG_ERR, "Lubrication Level Is Low");
+			hardware_warn = 1;
+		}
+		if (hyd_pump_on && !hyd_pump_running && (hyd_timer > contactor_switch_time))
+		{
+			rtapi_print_msg(RTAPI_MSG_ERR, "Hydraulic Pump Fault");
+			hardware_error = 1;
+		}
+		if (flood_pump_on && !flood_pump_running && (flood_timer > contactor_switch_time))
+		{
+			rtapi_print_msg(RTAPI_MSG_ERR, "Flood Coolant Pump Fault");
+			hardware_error = 1;
+		}
+		if (conveyor_on && !conveyor_running && (conveyor_timer > contactor_switch_time))
+		{
+			rtapi_print_msg(RTAPI_MSG_ERR, "Chip Conveyor Fault");
+			hardware_error = 1;
+		}
+	}
+
+}

@@ -1,0 +1,12 @@
+loadrt convert_load       names=conv_load
+
+addf conv_load            servo-thread
+
+net spindle-load         => conv_load.in
+net spindle-load-float      conv_load.out  => abs_spindle_load.in
+net abs-spindle-load     <= abs_spindle_load.out
+
+net abs-spindle-load                       =>  load_meter.spindle
+net x-load                                 =>  load_meter.x
+net y-load                                 =>  load_meter.y
+net z-load                                 =>  load_meter.z

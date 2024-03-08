@@ -1,0 +1,34 @@
+;M250 music control
+;   will default to mozart (0) without a P word
+;   1 = nocturn
+;   2 = menuette
+;   3 = fur_eliese
+o<m250> sub
+
+
+	o100 if [exists[#<p>]]
+		
+		o110 if [#<p> EQ 0]
+		o110 elseif [#<p> EQ 1]
+			M64 P#<_ini[MUSIC]MUSIC_PIN_0>
+		o110 elseif [#<p> EQ 2]
+			M64 P#<_ini[MUSIC]MUSIC_PIN_1>
+		o110 elseif [#<p> EQ 3]
+			M64 P#<_ini[MUSIC]MUSIC_PIN_0>
+			M64 P#<_ini[MUSIC]MUSIC_PIN_1>
+		o110 endif
+		
+	o100 endif
+
+	;enable music
+	M64 P#<_ini[MUSIC]MUSIC_PIN_EN>
+
+	;delay to allow system to trigger 
+	G4 P0.15
+
+	M65 P#<_ini[MUSIC]MUSIC_PIN_EN>
+	M65 P#<_ini[MUSIC]MUSIC_PIN_0>
+	M65 P#<_ini[MUSIC]MUSIC_PIN_1>
+
+o<m250> endsub [0]
+M2

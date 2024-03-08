@@ -1,0 +1,631 @@
+component vk45toolchange3 "tool change state machine for VK45 mill";
+
+//system pins
+pin in bit tool-change;           //Receives signal from M6 that tool change required
+pin out bit tool-changed;         //Sends signal when tool change finished
+pin in s32 tool-prep-pocket;      //next pocket to prepare from IO control
+pin in s32 tool-number;           //current tool number from IO control
+pin in s32 tool-prep-number;      //next tool to prepare from IO control
+pin in bit tool-prepare;          //signal to start the tool prep
+pin out bit tool-prepared;        //signal that the tool prep is done
+pin in bit tool-changer-reset-error;    //allows the state to be reset after an error. Tool changer postion must be recovered manually
+
+//spindle alignment pins
+pin in bit spindle-is-oriented;
+pin out bit spindle-reorient;      //used to force a re-orient if the spindle moved during change
+pin in bit spindle-is-in-position; //used to check to see if the spindle has moved during a change
+
+//carousel pins
+pin out bit carousel-enable;
+pin in bit carousel-ready;
+pin in bit carousel-active;
+pin out s32 carousel-pocket-number;
+pin in s32 carousel-position;
+pin out bit carousel-manual-index;
+
+//sensor inputs
+pin in bit sens-carousel-in-pos; //0
+pin in bit sens-rot-cw;          //1
+pin in bit sens-rot-ccw;         //2
+pin in bit sens-extend;          //3
+pin in bit sens-retract;         //4
+pin in bit sens-swing-spindle;   //5
+pin in bit sens-swing-carousel;  //6
+pin in bit sens-slide-home;      //7
+pin in bit sens-slide-spindle;   //8
+pin in bit sens-slide-carousel;  //9
+pin in bit sens-tool-clamp;
+pin in bit sens-tool-unclamp;
+
+//solinoid outputs
+pin out bit sol-rot-cw;           //1
+pin out bit sol-rot-ccw;          //2
+pin out bit sol-extend;           //3
+pin out bit sol-retract;          //4
+pin out bit sol-swing-spindle;    //5
+pin out bit sol-swing-carousel;   //6
+pin out bit sol-slide-spindle;    //7
+pin out bit sol-slide-spinhome;   //8
+pin out bit sol-slide-carousel;   //9
+pin out bit sol-slide-carohome;   //10
+pin out bit led-rotate-enable;    //12
+pin out bit sol-tool-unclamp;
+pin out bit sol-air-blow;
+
+//manual control, used to fix problems when power is lost during a toolchange
+//  or it gets stuck somewhere
+pin in bit set-rot-cw;
+pin in bit set-rot-ccw;
+pin in bit set-extend;
+pin in bit set-retract;
+pin in bit set-swing-spindle;
+pin in bit set-swing-carousel;
+pin in bit set-slide-spindle;
+pin in bit set-slide-spinhome;
+pin in bit set-slide-carousel;
+pin in bit set-slide-carohome;
+pin in bit button-manual-index;
+
+//other io
+pin out bit fault;
+pin out s32 internalstate;
+pin out s32 dbg-preppedpocket;
+
+param rw float statetimeout = 20.0;  //maximum time in one state before throwing an error
+param rw u32 number-of-pockets = 20; //likely never to change but why not.
+param rw s32 retries-allowed = 5;     //how many times to retry removing/inserting a tool before erroring out
+
+variable double timer = 0;
+variable int prepstate = 0;     // state machine to ack tool prep requests independantly of the toolstate to minimize delay
+variable int preppending = 0;   // signals toolstate that a tool prep needs to be done
+variable int prepdone = 0;      // signal from toolstate to prepstate to indicate that the prep is complete
+variable int toolstate = 0;     // holds the state of the tool change sequence
+variable int preppocket = 0;    // local snapshots of the IO control signals
+variable int prepnumber = 0; 
+variable int toolnumber = 0;
+variable int preppedpocket = 0; //stores the tool in the arm waiting to be loaded
+variable int retrycount = 0;    // counter for orient retries.
+
+author "alex lait";
+license "GPL";
+function _;
+
+;;
+
+FUNCTION(_){
+
+	internalstate = toolstate;
+	timer += fperiod;
+	if (timer > statetimeout) toolstate = 98;
+	
+	dbg_preppedpocket = preppedpocket;
+
+     // gate the manual carousel pushbutton so the carousel position is not changed 
+     // during tool prep
+	if ((toolstate == 10) && (preppedpocket == 0)) {
+		led_rotate_enable = 1;
+		carousel_manual_index = button_manual_index;
+	}
+	else {
+		led_rotate_enable = 0;
+		carousel_manual_index = 0;
+	}
+
+	switch (prepstate)
+	{
+		case 0: //wait for main state machine to be ready
+			if (toolstate > 0)
+				prepstate  = 1;
+			break;
+		
+		case 1:
+			if (tool_prepare)
+			{
+				if (toolstate == 10 || toolstate >= 200) //in home state or in tool change sequence
+				// if we are in a tool change sequence we can queue a prep call so we don't block further execution
+				{
+					preppending = 1;
+					tool_prepared = 1;
+					prepstate = 2;
+				}
+			}
+			break;
+			
+		case 2:  //wait for the signal to be acked
+			if (!tool_prepare)
+			{
+				tool_prepared = 0;
+				prepstate = 3;
+			}
+			
+		case 3:  //wait for the tool prep sequence to be done
+			if (prepdone)
+			{
+				prepdone = 0;
+				prepstate = 1;
+			}
+			break;
+		
+		default:
+			prepstate = 1;
+	}
+
+	switch (toolstate)
+	{
+		
+		case 0: //delay init to allow inputs to be read
+			if (timer > 0.5) {
+				toolstate = 1;
+				timer = 0;
+			}
+			break;
+
+		case 1: //read the sensor bits and determine if we are home
+			if (sens_swing_carousel && sens_slide_home && (sens_rot_cw || sens_rot_ccw)) {
+				//we are home and can set the solinoids safely
+				// note that we ignore the arm-extend/retract as it is leaky on my machine and 
+				// tends to move during powerdown.  As long as the rest of the actuators are in the
+				// correct position then it is safe to retract the tool arm
+				sol_extend = 0;
+				sol_retract = 1;
+				sol_swing_spindle = 0;
+				sol_swing_carousel = 1;
+				sol_slide_spindle = 0;
+				sol_slide_spinhome = 1;
+				sol_slide_carohome = 0;
+				sol_slide_carohome = 1;
+				sol_tool_unclamp = 0;
+				sol_air_blow = 0;
+				spindle_reorient = 0;
+				if (sens_rot_cw) {
+					sol_rot_ccw = 0;
+					sol_rot_cw = 1;
+				}
+				else {
+					sol_rot_cw = 0;
+					sol_rot_ccw = 1;
+				}
+				carousel_enable = 1;
+				toolstate = 2;
+			} else {
+				rtapi_print_msg(RTAPI_MSG_ERR,"Tool changer not in home position, recover using manual interface\n");
+				toolstate = 99;
+			}
+			break;
+		
+		case 2: //wait for the carousel to be homed
+			if (carousel_ready && sens_carousel_in_pos) {
+				carousel_enable = 0;
+				timer = 0;
+				toolstate = 10;
+			}
+
+		case 10: //home state
+		     if (preppending || tool_change) {
+				preppocket = tool_prep_pocket;
+				prepnumber = tool_prep_number;
+				toolnumber = tool_number;
+		     }
+		     
+			if (preppending) {
+				preppending = 0;
+				if (tool_prep_pocket > number_of_pockets) {
+					rtapi_print_msg(RTAPI_MSG_ERR,"Pocket %i requested which is greater than %i pocket max", tool_prep_pocket, number_of_pockets);
+					prepdone = 1;
+				}
+				else {
+					toolstate = 100;
+				}
+			} else if (tool_change) {
+				toolstate = 200;
+			} else if (preppedpocket > 0 && tool_prep_pocket == 0 && tool_prep_number == 0) {
+			     //unload the prepared tool into the current pocket
+			     //  IOcontrol does not toggle tool-prepare when a T0 is issued after a T# without an M6
+			     //  The only indication is that the prep-pocket and prep-number go to zero
+			     //  This is not something that would come up in most programs but is a useful behavior
+			     //  when debugging or testing
+			     toolstate = 110;
+				preppocket = tool_prep_pocket;
+				prepnumber = tool_prep_number;
+				toolnumber = tool_number;
+			}
+			timer = 0;
+			break;
+		
+		case 100: // prepare the next tool
+		     if (preppocket > 0 && prepnumber > 0) {
+		          //loading a tool from the carousel
+		          if (preppedpocket == preppocket) {
+		               //T word called twice with the same tool number, do nothing
+		               toolstate = 130;
+		          }
+		          else if (preppedpocket > 0) {
+		               //must return the current tool first
+		               toolstate = 110;
+		          }
+		          else {
+		               //load the required tool
+		               toolstate = 120;
+		          }
+		     }
+		     else if (preppocket > 0 && prepnumber == 0) {
+		          if (preppedpocket > 0)
+		          {
+		               //there is a tool prepped, need to put it back first
+		               toolstate = 110;
+		          }
+		          else
+		          {
+		               //move the carousel to the empty pocket to unload the tool
+		               toolstate = 120;
+		          }
+		     }
+		     else {
+		          //this should not happen as we should never get a prep request with a zero pocket number
+		          rtapi_print_msg(RTAPI_MSG_ERR,"Tool prep called with 0 pocket");
+		          toolstate = 130;
+		     }
+		     
+			break;
+
+		case 110: //start the tool return sequence
+			sol_extend = 1;
+			sol_retract = 0;
+			if (sens_extend) {
+				timer = 0;
+				toolstate = 111;
+			}
+			break;
+
+		case 111:
+			sol_slide_carohome = 0;
+			sol_slide_carousel = 1;
+			if (sens_slide_carousel) {
+				timer = 0;
+				toolstate = 112;
+			}
+			break;
+
+		case 112:
+			sol_extend = 0;
+			sol_retract = 1;
+			if (sens_retract) {
+				timer = 0;
+				toolstate = 113;
+			}
+			break;
+		
+		case 113:
+			sol_slide_carohome = 1;
+			sol_slide_carousel = 0;
+			if (sens_slide_home) {
+				timer = 0;
+				toolstate = 120;
+			}
+			break;
+
+		case 120:  // move the carousel to the prep tool location
+			if (preppocket > 0) {
+				carousel_pocket_number = preppocket;
+				carousel_enable = 1;
+     			toolstate = 121;
+			} else {
+				//don't load the next tool if the pocket number is zero
+				toolstate = 130;
+			}
+			break;
+		
+		case 121:
+			if (carousel_ready && sens_carousel_in_pos) {
+				carousel_enable = 0;
+				timer = 0;
+				if (prepnumber == 0) {
+				     //don't load the tool if there is nothing there
+     			     toolstate = 130;
+     			} else {
+     				toolstate = 122;
+     			}
+			}
+			break;
+
+		case 122:
+			sol_slide_carohome = 0;
+			sol_slide_carousel = 1;
+			if (sens_slide_carousel) {
+				timer = 0;
+				toolstate = 123;
+			}
+			break;
+		
+		case 123:
+			sol_extend = 1;
+			sol_retract = 0;
+			if (sens_extend) {
+				timer = 0;
+				toolstate = 124;
+			}
+			break;
+
+		case 124:
+			sol_slide_carohome = 1;
+			sol_slide_carousel = 0;
+			if (sens_slide_home) {
+				timer = 0;
+				toolstate = 125;
+			}
+			break;
+		
+		case 125:
+			sol_extend = 0;
+			sol_retract = 1;
+			if (sens_retract) {
+				timer = 0;
+				toolstate = 130;
+			}
+			break;
+
+		case 130: //complete the tool prep sequence
+			preppedpocket = preppocket;
+			prepdone = 1;
+			timer = 0;
+			toolstate = 10;
+			break;
+
+		case 200: //change tool in spindle
+			if (preppedpocket > 0) {
+				//is an actual tool change
+				toolstate = 210;
+			} else {
+				// no pocket ready for the tool to be swapped into
+				// this shouldn't happen
+		          rtapi_print_msg(RTAPI_MSG_ERR,"M6 called without a prepaired tool, Call T# first.");
+				tool_changed = 1;
+				toolstate = 260;
+			}
+			timer = 0;
+			break;
+
+		case 210: //swing the arm out to pick up the tool
+			sol_swing_carousel = 0;
+			sol_swing_spindle = 1;
+			if (sens_swing_spindle) {
+				timer = 0;
+				toolstate = 211;
+			}
+			break;
+
+		case 211:
+		     // give time for the arm to settle before picking up the tool
+			if (spindle_is_oriented && timer > 0.2) {
+				timer = 0;
+				toolstate = 212;
+			}
+			break;
+
+		case 212:  // exend the arm to pick up the tool in the spindle
+			sol_slide_spindle = 1;
+			sol_slide_spinhome = 0;
+			if (sens_slide_spindle) {
+				timer = 0;
+				if (spindle_is_in_position) {
+				     toolstate = 213;
+				} else {
+				     // spindle moved during tool pickup, retry
+			          retrycount++;
+				     toolstate = 280;
+				}
+			}
+			break;
+
+		case 213: //unclamp tool
+			sol_tool_unclamp = 1;
+			retrycount = 0;
+			if (sens_tool_unclamp) {
+				timer = 0;
+				toolstate = 214;
+			}
+			break;
+
+		case 214: //remove tool
+			sol_retract = 0;
+			sol_extend = 1;
+			sol_air_blow = 1;
+			if (sens_extend) {
+				timer = 0;
+				if (sens_rot_cw)
+					toolstate = 215;
+				else
+					toolstate = 216;
+			}
+			break;
+		
+		case 215: //swap tool ccw
+			sol_rot_cw = 0;
+			sol_rot_ccw = 1;
+			if (sens_rot_ccw) {
+				timer = 0;
+				toolstate = 217;
+			}
+			break;
+
+		case 216: //swap tool cw
+			sol_rot_cw = 1;
+			sol_rot_ccw = 0;
+			if (sens_rot_cw) {
+				timer = 0;
+				toolstate = 217;
+			}
+			break;
+
+		case 217: //insert tool
+			sol_retract = 1;
+			sol_extend = 0;
+			if (sens_retract) {
+				timer = 0;
+				toolstate = 218;
+			}
+			break;
+
+		case 218: //clamp tool
+			sol_tool_unclamp = 0;
+			sol_air_blow = 0;
+			if (sens_tool_clamp) {
+				timer = 0;
+				toolstate = 219;
+			}
+			break;
+
+		case 219:  // retract the arm from the spindle tool
+			sol_slide_spindle = 0;
+			sol_slide_spinhome = 1;
+			if (sens_slide_home) {
+				timer = 0;
+				toolstate = 220;
+			}
+			break;
+
+		case 220: //swing the arm back home
+			sol_swing_carousel = 1;
+			sol_swing_spindle = 0;
+			if (sens_swing_carousel) {
+				timer = 0;
+				toolstate = 250;
+			}
+			break;
+
+		case 250: //can continue machining from here, need to finish putting the tool away
+			tool_changed = 1;
+			if (toolnumber > 0) {
+			     // there is a tool in the spindle we need to put back in the carousel
+			     if (carousel_position != preppedpocket) { 
+			          // this should not happen unless someone was playing with the manual index on the carousel
+			          // after tool prep
+				     carousel_pocket_number = preppedpocket;
+				     carousel_enable = 1;
+				     toolstate = 251;
+			     } else {
+				     toolstate = 252;
+			     }
+			} else {
+			     // don't go througth the motions with no tool in the arm
+			     toolstate = 260;
+			}
+			break;
+		
+		case 251:
+			if (carousel_ready && sens_carousel_in_pos) {
+				carousel_enable = 0;
+				timer = 0;
+				toolstate = 252;
+			}
+			break;
+		
+		case 252: //start the tool return sequence
+			sol_extend = 1;
+			sol_retract = 0;
+			if (!tool_change) tool_changed = 0;
+			if (sens_extend) {
+				timer = 0;
+				toolstate = 253;
+			}
+			break;
+
+		case 253:
+			sol_slide_carohome = 0;
+			sol_slide_carousel = 1;
+			if (sens_slide_carousel) {
+				timer = 0;
+				toolstate = 254;
+			}
+			break;
+
+		case 254:
+			sol_extend = 0;
+			sol_retract = 1;
+			if (sens_retract) {
+				timer = 0;
+				toolstate = 255;
+			}
+			break;
+		
+		case 255:
+			sol_slide_carohome = 1;
+			sol_slide_carousel = 0;
+			if (sens_slide_home) {
+				timer = 0;
+				toolstate = 260;
+			}
+			break;
+
+		case 260: //done the tool change for real
+			if (!tool_change) {
+				tool_changed = 0;
+				preppedpocket = 0;
+				toolstate = 10;
+			} else {
+				tool_changed = 1;
+			}
+			break;
+			
+		case 280: //spindle moved during tool pickup
+			//retract the arm
+			sol_slide_spindle = 0;
+			sol_slide_spinhome = 1;
+			spindle_reorient = 1;
+			if (retrycount > retries_allowed) {
+			     rtapi_print_msg(RTAPI_MSG_ERR, "Max attempts exceeded trying to pick up tool");
+			     toolstate = 99;
+			}
+			if (sens_slide_home && timer > 0.5) {
+				timer = 0;
+				spindle_reorient = 0;
+				toolstate = 281;
+			}
+		     break;
+		     
+		case 281:
+			if (spindle_is_oriented) {
+				timer = 0;
+				toolstate = 212;
+			}
+			break;
+
+		case 97:
+			if (!tool_changer_reset_error)
+				toolstate = 1;  //try again
+			break;
+
+		case 98:
+			rtapi_print_msg(RTAPI_MSG_ERR,"Tool changer state machine timed out in state %i\n", internalstate);
+			spindle_reorient = 0;
+			toolstate = 99;
+
+		case 99:  // manual control fall back mode if something goes wrong
+			sol_rot_cw = set_rot_cw;
+			sol_rot_ccw = set_rot_ccw;
+			sol_extend = set_extend;
+			sol_retract = set_retract;
+			sol_swing_spindle = set_swing_spindle;
+			sol_swing_carousel = set_swing_carousel;
+			sol_slide_spindle = set_slide_spindle;
+			sol_slide_spinhome = set_slide_spinhome;
+			sol_slide_carousel = set_slide_carousel;
+			sol_slide_carohome = set_slide_carohome;
+		     sol_air_blow = 0;
+			sol_tool_unclamp = 0;  //this can be control with the manual button
+			timer = 0;
+			spindle_reorient = 0;
+			retrycount =  0;
+			if (tool_changer_reset_error)
+			{	
+				toolstate = 97; // must toggle tool-changer-reset-error high and low, prevents forming a loop
+			}
+			break;
+		default:
+			rtapi_print_msg(RTAPI_MSG_ERR,"Tool changer reached unknown state %i, restart interface\n", toolstate);
+			toolstate = 99;
+
+
+	}
+
+}

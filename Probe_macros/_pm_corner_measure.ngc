@@ -1,0 +1,226 @@
+; measure a corner, must start
+
+o<_pm_corner_measure> sub
+
+    #<x> = #1
+    #<y> = #2
+    #<i> = #3
+    #<j> = #4
+	#<probex> = #5
+	#<probey> = #6
+    ;1 = external corner, -1 = internal corner
+    #<dir> = #7
+    #<q> = #8
+	#<zdown> = #9
+	#<z> = #10
+
+    #<startx> = #<_x>
+    #<starty> = #<_y>
+	#<startz> = #<_z>
+
+    ;overtravel
+	#<overtravel> = #<_pv_search_dist>
+
+    ;move vector
+    #<x_probe_dist> = [#<x> - #<_x>]
+	o100 if [#<x_probe_dist> gt 0]
+		#<xdir> = 1
+	o100 elseif [#<x_probe_dist> lt 0]
+		#<x_probe_dist> = abs[#<x_probe_dist>]
+		#<xdir> = -1
+	o100 else
+		#<_pmm_error_status> = -140
+		o<_pm_corner_measure> return -1
+	o100 endif
+
+    #<y_probe_dist> = [#<y> - #<_y>]
+	o105 if [#<y_probe_dist> gt 0]
+		#<ydir> = 1
+	o105 elseif [#<y_probe_dist> lt 0]
+		#<y_probe_dist> = abs[#<y_probe_dist>]
+		#<ydir> = -1
+	o105 else
+		#<_pmm_error_status> = -140
+		o<_pm_corner_measure> return -1
+	o105 endif
+
+    o110 if [#<dir> EQ 1]
+		o111 if [#<probex>]
+			#<initial_x> = [#<x_probe_dist> + #<probex>]
+		o111 else
+			#<initial_x> = [#<x_probe_dist> * 2]
+		o111 endif
+		o112 if [#<probey>]
+			#<initial_y> = [#<y_probe_dist> + #<probey>]
+		o112 else
+			#<initial_y> = [#<y_probe_dist> * 2]
+		o112 endif
+    o110 else
+		o113 if [#<probex>]
+			#<initial_x> = [#<probex> - #<x_probe_dist>]
+		o113 else
+			#<initial_x> = 0
+		o113 endif
+		o114 if [#<probey>]
+			#<initial_y> = [#<probey> - #<y_probe_dist>]
+		o114 else
+			#<initial_y> = 0
+		o114 endif
+    o110 endif
+	
+    o120 if [#<xdir> GT 0]
+        #<xangle> = 0
+    o120 else
+        #<xangle> = 180
+    o120 endif
+	#<x_probe_start> = [#<x_probe_dist> - #<_pv_clearance>]
+	o125 if [#<x_probe_start> lt 0]
+		#<x_probe_start> = 0
+	o125 endif
+	#<x_probe_start> = [#<x_probe_start> * #<xdir>]
+
+    o130 if [#<ydir> GT 0]
+        #<yangle> = 90
+    o130 else
+        #<yangle> = 270
+    o130 endif
+	#<y_probe_start> = [#<y_probe_dist> - #<_pv_clearance>]
+	o135 if [#<y_probe_start> lt 0]
+		#<y_probe_start> = 0
+	o135 endif
+	#<y_probe_start> = [#<y_probe_start> * #<ydir>]
+
+    G91 G1 X[#<initial_x> * #<xdir>] F[#<_pmm_rapid_feedrate>]
+	G1 Y[#<y_probe_start>]
+	o200 if [#<zdown>]
+		G90 G1 Z[#<z>]
+	o200 endif
+	
+    ;probe the first y location
+    o<_pm_probe> call [#<_pv_search_dist> + #<_pv_clearance>] [#<_pmm_backoff_distance>] [#<yangle>] [0] [0] [#<_pv_clearance>]
+    o<_pm_check_error> call [#<_value>]
+    #<y1> = #[#<_pma_ypos>]
+    #<x1> = #<_x>
+	G90 G1 Z[#<startz>] F[#<_pmm_rapid_feedrate>]
+    G1 Y[#<starty>]
+
+    ;second y only if I is set
+    o140 if [#<i>]
+        G91 G1 X[#<i> * #<xdir> * #<dir>] F[#<_pmm_rapid_feedrate>]
+		G1 Y[#<y_probe_start>]
+		o210 if [#<zdown>]
+			G90 G1 Z[#<z>]
+		o210 endif
+
+        o<_pm_probe> call [#<_pv_search_dist> + #<_pv_clearance>] [#<_pmm_backoff_distance>] [#<yangle>] [0] [0] [#<_pv_clearance>]
+        o<_pm_check_error> call [#<_value>]
+        #<y2> = #[#<_pma_ypos>]
+        #<x2> = #<_x>
+		G90 G1 Z[#<startz>] F[#<_pmm_rapid_feedrate>]
+        G1 Y[#<starty>]
+    o140 else
+        #<y2> = #<y1>
+        #<x2> = [#<_x> + 1]
+    o140 endif
+    
+    ; return to the starting point
+    G90 G1 X[#<startx>] F[#<_pmm_rapid_feedrate>]
+    
+	; move to the probe point
+    G91 G1 Y[#<initial_y> * #<ydir>] F[#<_pmm_rapid_feedrate>]
+	G1 X[#<x_probe_start>]
+	o220 if [#<zdown>]
+		G90 G1 Z[#<z>]
+	o220 endif
+	
+    ;probe the first x location
+    o<_pm_probe> call [#<_pv_search_dist> + #<_pv_clearance>] [#<_pmm_backoff_distance>] [#<xangle>] [0] [0] [#<_pv_clearance>]
+    o<_pm_check_error> call [#<_value>]
+    #<x3> = #[#<_pma_xpos>]
+    #<y3> = #<_y>
+	G90 G1 Z[#<startz>] F[#<_pmm_rapid_feedrate>]
+    G1 X[#<startx>] 
+
+    ;second x only if J is set
+    o150 if [#<j>]
+        G91 G1 Y[#<j> * #<ydir> *#<dir>] F[#<_pmm_rapid_feedrate>]
+		G1 X[#<x_probe_start>]
+		o230 if [#<zdown>]
+			G90 G1 Z[#<z>]
+		o230 endif
+		
+        o<_pm_probe> call [#<_pv_search_dist> + #<_pv_clearance>] [#<_pmm_backoff_distance>] [#<xangle>] [0] [0] [#<_pv_clearance>]
+        o<_pm_check_error> call [#<_value>]
+        #<x4> = #[#<_pma_xpos>]
+        #<y4> = #<_y>
+		G90 G1 Z[#<startz>] F[#<_pmm_rapid_feedrate>]
+        G1 X[#<startx>]
+		
+    o150 else
+        #<x4> = #<x3>
+        #<y4> = [#<_y> + 1]
+    o150 endif
+    
+    ; return to the starting point
+    G90 G1 Y[#<starty>] F[#<_pmm_rapid_feedrate>]
+    
+	(print, x1: #<x1> x2: #<x2> y1: #<y1> y2: #<y2>)
+	(print, x3: #<x3> x4: #<x4> y3: #<y3> y4: #<y4>)
+	
+    ; calculate the angles
+    #<meas_x_angle> = [ATAN[#<y1> - #<y2>]/[#<x1> - #<x2>]]
+    #<meas_y_angle> = [ATAN[#<y3> - #<y4>]/[#<x3> - #<x4>]]
+    #<meas_x_angle> = [[#<meas_x_angle>]mod[180]]
+	o155 if [#<meas_x_angle> gt 90]
+		#<meas_x_angle> = [#<meas_x_angle> - 180]
+	o155 endif
+	#<meas_y_angle> = [[#<meas_y_angle>]mod[180]]
+	
+    ;line calc
+    o160 if [#<x3> EQ #<x4>]
+        #<vertx> = 1
+        #<a> = 0
+        #<b> = #<x3>
+    o160 else
+        #<vertx> = 0
+        #<a> = [[#<y3> - #<y4>] / [#<x3> - #<x4>]]
+        #<b> = [#<y3> - [#<a> * #<x3>]]
+    o160 endif
+    o170 if [#<x1> EQ #<x2>]
+        #<verty> = 1
+        #<c> = 0
+        #<d> = [#<x1>]
+    o170 else
+        #<verty> = 0
+        #<c> = [[#<y1> - #<y2>] / [#<x1> - #<x2>]]
+        #<d> = [#<y1> - [#<c> * #<x1>]]
+    o170 endif
+    
+	(print, A #<a>  B #<b> C #<c> D #<d>)
+	
+    o180 if [#<vertx>]
+		#<virtual_x> = #<x3>
+		#<virtual_y> = [#<c> * #<x3> + #<d>]
+	o180 elseif [#<verty>]
+		(abort, Got vertical line in y axis probe this should not be possible)
+		#<virtual_x> = 0
+		#<virtual_y> = 0
+	o180 elseif [#<a> EQ #<c>]
+        ; lines are parallel, no intersection
+        (abort, Parallel lines detected in corner probe, no intersection between parallel lines)
+        #<virtual_x> = 0
+        #<virtual_y> = 0
+    o180 else
+        #<virtual_x> = [[#<d> - #<b>] / [#<a> - #<c>]]
+        #<virtual_y> = [[#<a> * #<d> - #<b> * #<c>] / [#<a> - #<c>]]
+    o180 endif
+    
+	(print, vx: #<virtual_x> vy: #<virtual_y> xang: #<meas_x_angle> yang: #<meas_y_angle>)
+	
+    #[#<_pma_xpos>] = #<virtual_x>
+    #[#<_pma_ypos>] = #<virtual_y>
+    #[#<_pma_angle>] = #<meas_x_angle>
+    #[#<_pma_zerr>] = #<meas_y_angle>
+
+o<_pm_corner_measure> endsub [0]
+M2

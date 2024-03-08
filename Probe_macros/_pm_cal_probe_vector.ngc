@@ -1,0 +1,193 @@
+; probe vector calibration
+;  probe must be centered on the standard before calling this function
+o<_pm_cal_probe_vector> sub
+
+    ;required params
+    #<feature_dia> =    #1
+    ; 0 - ring gauge, 1 - pin gauge, 2 - sphere gauge
+    #<mode> =           #2
+    #<probe_diameter> = #3
+    #<zheight> =        #4
+    #<clearance> =      #5
+
+    #<num_points> =     12
+
+    ;capture the starting point
+    #<sx> = #<_x>
+    #<sy> = #<_y>
+    #<sz> = #<_z>
+
+    o10 if [#<_pmm_error_status> NE 0]
+        o<_pm_cal_probe_vector> return [-1]
+    o10 endif
+
+    o100 if [#<mode> EQ 2]
+        ;probe the top of the sphere in sphere mode
+        o<_pm_probe> call [#<_pmm_search_distance>] [#<_pmm_backoff_distance>] [0] [90] [1]
+        o15 if [#<_pmm_error_status> NE 0]
+            o<_pm_cal_probe_vector> return [-1]
+        o15 endif
+        #<zheight> = [#[#<_pma_zpos>] - [#<feature_dia> / 2 + #<probe_diameter> / 2]]
+        #<zdown> = 1
+        #<direction> = 1
+    o100 elseif [#<mode> EQ 0]
+        #<zheight> = 0
+        #<zdown> = 0
+        #<direction> = -1
+    o100 else
+		o102 if [#<_incremental>]
+			(msg, Warning, incremental mode on, Z value is relative)
+			#<zheight> = [#<sz> + #<zheight>]
+		o102 endif
+		o103 if [[#<sz> - #<zheight>] LT [#<probe_diameter> / 2]]
+			#<_pmm_error_status> = -111
+			o<_pm_cal_probe_vector> return [-1]
+		o103 endif
+        #<zdown> = 1
+        #<direction> = 1
+    o100 endif
+    o101 if [#<_ini[PROBE_MACRO]HAS_SPINDLE_ORIENT> GT 0]
+        #<orient> = 1
+    o101 else
+        #<orient> = 0
+    o101 endif
+    
+    o110 if [#<orient>]
+        M19 R0 Q[#<_ini[PROBE_MACRO]SPINDLE_ORIENT_TIME>]
+    o110 endif
+    
+    ; calculate clearance values
+    o120 if [#<mode> EQ 0]
+        ; inside
+        o121 if [[#<feature_dia> / 2] LT #<clearance>]
+            #<cleardist> = 0
+        o121 else
+            #<cleardist> = [#<feature_dia> / 2 - #<clearance>]
+        o121 endif
+    o120 else
+        ; outside
+        #<cleardist> = [#<feature_dia> / 2 + #<clearance>]
+    o120 endif    
+    
+    ;move to the starting point
+    G91 G1 X[#<cleardist>] F[#<_pmm_rapid_feedrate>]
+
+    ; relative move to the z height
+    o130 if [#<zdown>]
+        G90 G1 Z[#<zheight>] F[#<_pmm_rapid_feedrate>]
+    o130 endif
+    
+    ; loop to get all vector points
+    #<num> = 0
+    #<xrad> = 0
+    #<yrad> = 0
+	
+	(print, Vector Calibration Start)
+    o140 repeat [#<num_points>]
+        #<current_angle> = [360 / #<num_points> * #<num>]
+        o141 if [#<mode> NE 0]
+            ;external, need to invert the angle
+            #<current_angle> = [#<current_angle> + 180]
+            o142 if [#<current_angle> GT 360]
+                #<current_angle> = [#<current_angle> - 360]
+            o142 endif
+        o141 endif
+        
+        #<ix> = #<_x>
+        #<iy> = #<_y>
+        
+        o<_pm_probe> call [#<_pmm_search_distance>] [#<_pmm_backoff_distance>] [#<current_angle>] [0] [1]
+        o20 if [#<_pmm_error_status> NE 0]
+            o<_pm_cal_probe_vector> return [-1]
+        o20 endif
+        
+        #<length> = [[[#[#<_pma_xpos>] - #<sx>] ** 2 + [#[#<_pma_ypos>] - #<sy>] ** 2] ** .5]
+        ;effective probe radius at this angle
+        #<radius> = ABS[#<feature_dia> / 2 - #<length>]
+
+       ; return to probe start point
+       G90 G1 X[#<ix>] Y[#<iy>] F[#<_pmm_rapid_feedrate>]
+
+        #<next_angle> = [360 / #<num_points> * [#<num> + 1]]
+        o143 if [#<cleardist> GT 0]
+            ; external pin or sphere
+            #<next_x> = [COS[#<next_angle>] * #<cleardist> + #<sx>]
+            #<next_y> = [SIN[#<next_angle>] * #<cleardist> + #<sy>]
+            #<i_val>  = [#<sx> - #<ix>]
+            #<j_val>  = [#<sy> - #<iy>]
+            
+            G90 G3 X[#<next_x>] Y[#<next_y>] I[#<i_val>] J[#<j_val>] F[#<_pmm_rapid_feedrate>]
+        o143 endif
+
+        ;store the vector data, #$@@#$@ Renishaw legacy crap
+        #<vecnum> = [#<current_angle> / [360 / #<num_points>]]
+        #<vecnum> = [#<vecnum> MOD #<num_points>]
+        o144 if [#<vecnum> EQ 0]
+            ;0deg x+
+			(print, ____0deg: #<radius>)
+            #<xrad> = [#<xrad> + #<radius>]
+        o144 elseif [#<vecnum> EQ 1]
+            ;30deg
+			(print, ___30deg: #<radius>)
+            #[#<_pma_cal_vec_base> + 0] = #<radius>
+        o144 elseif [#<vecnum> EQ 2]
+            ;60deg
+			(print, ___60deg: #<radius>)
+            #[#<_pma_cal_vec_base> + 1] = #<radius>
+        o144 elseif [#<vecnum> EQ 3]
+            ;90deg y+
+			(print, ___90deg: #<radius>)
+            #<yrad> = [#<yrad> + #<radius>]
+        o144 elseif [#<vecnum> EQ 4]
+            ;120deg
+			(print, __120deg: #<radius>)
+            #[#<_pma_cal_vec_base> + 2] = #<radius>
+        o144 elseif [#<vecnum> EQ 5]
+            ;150deg
+			(print, __150deg: #<radius>)
+            #[#<_pma_cal_vec_base> + 3] = #<radius>
+        o144 elseif [#<vecnum> EQ 6]
+            ;180deg x-
+			(print, __180deg: #<radius>)
+            #<xrad> = [#<xrad> + #<radius>]
+        o144 elseif [#<vecnum> EQ 7]
+            ;210deg
+			(print, __210deg: #<radius>)
+            #[#<_pma_cal_vec_base> + 4] = #<radius>
+        o144 elseif [#<vecnum> EQ 8]
+            ;240deg
+			(print, __240deg: #<radius>)
+            #[#<_pma_cal_vec_base> + 5] = #<radius>
+        o144 elseif [#<vecnum> EQ 9]
+            ;270deg y-
+			(print, __270deg: #<radius>)
+            #<yrad> = [#<yrad> + #<radius>]
+        o144 elseif [#<vecnum> EQ 10]
+            ;300deg
+			(print, __300deg: #<radius>)
+            #[#<_pma_cal_vec_base> + 6] = #<radius>
+        o144 elseif [#<vecnum> EQ 11]
+            ;330deg
+			(print, __330deg: #<radius>)
+            #[#<_pma_cal_vec_base> + 7] = #<radius>
+        o144 endif
+        #<num> = [#<num> + 1]
+        
+    o140 endrepeat
+
+    ; average the x and y radius values as there is no seperate + and - table value
+	#<xrad> = [#<xrad> / 2]
+	#<yrad> = [#<yrad> / 2]
+    #[#<_pma_cal_base> + #<_pma_cal_xrad>] = #<xrad>
+    #[#<_pma_cal_base> + #<_pma_cal_yrad>] = #<yrad>
+
+    ; relative move to the z height
+    o150 if [#<zdown> GT 0]
+        G90 G1 Z[#<sz>] F[#<_pmm_rapid_feedrate>]
+    o150 endif
+    
+    ;return to center
+    G90 G1 X[#<sx>] Y[#<sy>] F[#<_pmm_rapid_feedrate>]
+
+o<_pm_cal_probe_vector> endsub [0]
+M2

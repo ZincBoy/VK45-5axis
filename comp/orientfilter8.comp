@@ -1,0 +1,263 @@
+component orientfilter8 "conditions the orient sensor to feed into the pid loop";
+pin in float pos-sensor;
+pin in float spindle-angle;
+pin in float spindle-rpm;
+pin in s32 pulseModeFB;
+pin in bit pos-valid;
+pin in bit spindle-enable;
+pin in bit orient-enable;
+pin in bit toolchange-orient-enable;
+pin in bit toolchange-reorient;
+pin in bit position-done;
+pin in bit low-gear;
+pin in s32 tool-number;
+pin out float pulseMode;
+pin out float gearRatio1;
+pin out float gearRatio2;
+pin out float position;
+pin out bit drive-enable;
+pin out bit drive-step;
+pin out bit drive-stat;
+pin out bit drive-dir;
+pin out bit drive-clr;
+pin out bit in-position;
+pin out bit orient-done;
+pin out s32 orient-error;
+param rw float default-value=4.00; //voltage when pos-valid is false
+param rw float offset=-11.5;       //amount added to position output
+param rw float homeval=0;
+param rw float errorval = 0.3;
+param rw float timeout = 40.0;
+param rw float braketime = 1.0;
+param rw float lowRatio1 = 10;
+param rw float lowRatio2 = 1;
+param rw float highRatio1 = 2;
+param rw float highRatio2 = 1;
+param rw float voltsperstephigh = 0.1662;
+param rw float voltspersteplow  = 0.1576;
+param rw float maxOrientRPM = 100;
+param rw s32 slowstepdiv = 5;
+param rw s32 steps-per-rev-low = 1924;
+param rw s32 steps-per-rev-high = 1792;
+param rw float in-pos-error-mult = 4;
+param rw s32 maxerrorcount = 4;
+param rw s32 static-tool-number = 90;
+variable int curstate = 0;
+variable int orienten = 0;
+variable double timer = 0;
+variable double braketimer = 0;
+variable int counter = 0;
+variable int localdriveen = 0;
+variable int stepcounter = 0;
+variable int slowstepmult = 1;
+variable int errorcount = 0;
+
+author "alex lait";
+license "GPL";
+function _;
+
+;;
+#include "rtapi_math.h"
+
+FUNCTION(_){
+
+
+	int steps_per_rev;
+	int orient_dir;
+	float stepsearch;
+	float rawvalue;
+	float internal_spindle_angle;
+	
+	timer += fperiod;
+	if (timer > timeout) 
+	{
+		orient_error = curstate;
+		curstate = 98;
+	}
+
+	if (!pos_valid)
+		position = default_value + offset;
+	else
+		position = pos_sensor + offset;
+	
+	//set the virtual gear ratio in the drive depending on the actual spindle gear ratio
+	//  goal is for the search speeds to be the same in both gear ratios
+	if (low_gear)
+	{
+		stepsearch = voltspersteplow;
+		steps_per_rev = steps_per_rev_low;
+		gearRatio1 = lowRatio1;
+		gearRatio2 = lowRatio2;
+	}
+	else
+	{
+		stepsearch = voltsperstephigh;
+		steps_per_rev = steps_per_rev_high;
+		gearRatio1 = highRatio1;
+		gearRatio2 = highRatio2;
+	}
+
+	if (tool_number == static_tool_number)
+	{
+		// don't move the spindle
+		drive_enable = 0;
+		orient_done = 1;
+		timer = 0;
+		return;
+	}
+
+	if (spindle_angle > 180)
+	{
+		orient_dir = 1;
+		internal_spindle_angle = 360 - spindle_angle;
+	}
+	else
+	{
+		orient_dir = 0;
+		internal_spindle_angle = spindle_angle;
+	}
+     // binary position output used by tool changer to know if the spindle has moved
+	//if (fabs(position - homeval) < (errorval * in_pos_error_mult))
+	if (fabs(position - homeval) < ((float)maxerrorcount * stepsearch * in_pos_error_mult))
+	{
+	     in_position = 1;
+	}
+	else
+	{
+	     in_position = 0;
+	}
+	
+	// multiple inputs to avoid addtional HAL components
+	orienten = orient_enable || (toolchange_orient_enable && !toolchange_reorient);
+	
+	switch (curstate)
+	{
+		case 0:  //idle state
+			if (orienten)
+				curstate = 1;
+			drive_dir = 0;
+			drive_step = 0;
+			drive_clr = 0;
+			drive_stat = 0;
+			orient_done = 0;
+			orient_error = 0;
+			pulseMode = 0;
+			braketimer = 0;
+			timer = 0;
+			counter = 0;
+			localdriveen = 0;
+			break;
+		case 1: 
+		     //make sure the spindle is low enough rpm, otherwise the drive could fault when switching to position mode
+               // If the spindle was running before the M19 was called, it will take time for it to stop
+		     if (spindle_rpm < maxOrientRPM)
+		          curstate = 2;
+		     break;
+		case 2: //switch drive to position control mode
+			drive_clr = 1;
+			pulseMode = 1;
+			
+			if (pulseModeFB == 1)
+				curstate = 3;
+			break;
+		case 3: //wait for drive clear signal to be read by drive
+			braketimer += fperiod;
+			if (braketimer > 0.05)
+			{
+				localdriveen = 1;
+				braketimer = 0;
+				drive_clr = 0;
+				drive_stat = 1;
+				curstate = 4;
+			}
+			break;
+		case 4: //coarse search at max pulse speed
+			if (drive_step == 0)
+				drive_step = 1;
+			else
+				drive_step = 0;
+			if (pos_valid) //stop once we are in the analog position range
+				curstate = 5;
+			break;
+		case 5: //wait for the position to settle due to lag between pulse and movement
+			braketimer += fperiod;
+			if (braketimer >= braketime)
+			{
+				braketimer = 0;
+				curstate = 6;
+				counter = 0;
+				rawvalue = (position - homeval) / stepsearch;
+				if (rawvalue > 0)
+					drive_dir = 1;
+				else
+					drive_dir = 0;
+				errorcount = (int)round(fabs(rawvalue));
+				if (errorcount < maxerrorcount)
+				{
+					if (toolchange_orient_enable || (internal_spindle_angle == 0))
+					     curstate = 10;
+					else
+					     curstate = 8;
+				}
+			}
+			break;
+		case 6: //fine search at slower speed once we are in the analog position range
+			
+			if (drive_step == 0)
+				drive_step = 1;
+			else
+			{
+				drive_step = 0;
+				counter++;
+			}
+			
+			if (counter > errorcount)
+				curstate = 5;
+				
+			break;
+			
+			
+		case 8: //adjust the spindle to the desired orientation
+			drive_dir = orient_dir;
+			if (counter >= (internal_spindle_angle/360 * steps_per_rev))
+			{
+				curstate = 9;
+			}
+			else
+			{
+				if (drive_step == 0)
+				{
+					drive_step = 1;
+					counter++;
+				}
+				else
+					drive_step = 0;
+			}
+			break;
+		case 9: //let the position settle once the search is done
+			braketimer += fperiod;
+			if (braketimer > (braketime * 3))
+			{
+				curstate = 10;
+				braketimer = 0;
+			}
+			break;
+		case 10: //set the orient done bit
+			orient_done = 1;
+			timer = 0;
+			if (!orienten)
+				curstate = 0;
+			break;
+		case 98: //something bad happened -> timeout
+			orient_done = 0;
+			timer = 0;
+			if (!orienten)
+				curstate = 0;
+			break;
+		default:
+			curstate = 0;
+	}
+	
+	drive_enable = spindle_enable | localdriveen; 
+
+}

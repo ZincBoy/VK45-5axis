@@ -1,0 +1,48 @@
+; stores the current cal data into the selected address space
+
+o<_pm_store_cal> sub
+
+    o100 if [#1 EQ 1]
+        ; first memory location
+        #<basememadr> = #<_pma_cal_k1_base>
+    o100 elseif [#1 EQ 2]
+        ; second memory location
+        #<basememadr> = #<_pma_cal_k2_base>
+    o100 elseif [#1 EQ 3]
+        ; third memory location
+        #<basememadr> = #<_pma_cal_k3_base>
+    o100 elseif [#1 EQ 4]
+        ; forth memory location
+        #<basememadr> = #<_pma_cal_k4_base>
+    o100 elseif [#1 eq 11]
+        #<vecmemadr> = #<_pma_cal_k11_base>
+    o100 elseif [#1 eq 12]
+        #<vecmemadr> = #<_pma_cal_k12_base>
+    o100 elseif [#1 eq 13]
+        #<vecmemadr> = #<_pma_cal_k13_base>
+    o100 elseif [#1 eq 14]
+        #<vecmemadr> = #<_pma_cal_k14_base>
+    o100 else
+        (abort, Invalid probe calibration memory selected, K must be 1,2,3,4 or 11,12,13,14)
+    o100 endif
+
+    o110 if [#1 LT 10]
+        ; base memory
+        #[#<basememadr> + #<_pma_cal_xrad>] = #[#<_pma_cal_base> + #<_pma_cal_xrad>]
+        #[#<basememadr> + #<_pma_cal_yrad>] = #[#<_pma_cal_base> + #<_pma_cal_yrad>]
+        #[#<basememadr> + #<_pma_cal_xoff>] = #[#<_pma_cal_base> + #<_pma_cal_xoff>]
+        #[#<basememadr> + #<_pma_cal_yoff>] = #[#<_pma_cal_base> + #<_pma_cal_yoff>]
+    o110 else
+        ; vector memory
+        #[#<vecmemadr> + 0] = #[#<_pma_cal_vec_base> + 0]
+        #[#<vecmemadr> + 1] = #[#<_pma_cal_vec_base> + 1]
+        #[#<vecmemadr> + 2] = #[#<_pma_cal_vec_base> + 2]
+        #[#<vecmemadr> + 3] = #[#<_pma_cal_vec_base> + 3]
+        #[#<vecmemadr> + 4] = #[#<_pma_cal_vec_base> + 4]
+        #[#<vecmemadr> + 5] = #[#<_pma_cal_vec_base> + 5]
+        #[#<vecmemadr> + 6] = #[#<_pma_cal_vec_base> + 6]
+        #[#<vecmemadr> + 7] = #[#<_pma_cal_vec_base> + 7]
+    o110 endif
+
+o<_pm_store_cal> endsub [0]
+M2

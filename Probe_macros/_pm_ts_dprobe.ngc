@@ -1,0 +1,71 @@
+o<_pm_ts_dprobe> sub
+
+    ; Parameters for this macro
+	#<pval> 			= #1
+	; distance to move down before probing tool
+    #<ztravel>          = #2
+    ; negative for left hand tool, positive for right hand, 0 for no rotation
+    #<tool_diameter>    = #3
+    ; select the axis to probe
+    #<xdir>             = #4
+    #<ydir>             = #5
+	; set to 1 to probe both sides
+	#<bidir> 			= #6
+	#<location> 		= #7
+
+	#<sx> = #<_x>
+	#<sy> = #<_y>
+	#<sz> = #<_z>
+
+    (print, dprobe call)
+
+    o05 if [#<_pmm_error_status> NE 0]
+        o<_pm_ts_dprobe> return [-1]
+    o05 endif
+    
+    (print, dprobe start)
+
+	o<_pm_ts_xyprobe> call [#<ztravel>] [#<tool_diameter>] [#<xdir>] [#<ydir>]
+	o<_pm_check_error> call [#<pval>]
+	#<x1> = #[#<_pma_xpos>]
+	#<y1> = #[#<_pma_ypos>]
+	
+	o100 if [#<bidir>]
+		o<_pm_ts_xyprobe> call [#<ztravel>] [#<tool_diameter>] [-#<xdir>] [-#<ydir>]
+		o<_pm_check_error> call [#<pval>]
+		#<x2> = #[#<_pma_xpos>]
+		#<y2> = #[#<_pma_ypos>]
+		#[#<_pma_size>] = abs[[#<x1> - #<x2>] + [#<y1> - #<y2>]]
+	o100 else
+		#[#<_pma_size>] = [abs[[#<x1> - #<sx>] + [#<y1> - #<sy>]] * 2]
+	o100 endif
+	
+	o110 if [#<bidir> and #<location>]
+		o<_pm_ts_xyprobe> call [#<ztravel>] [#<tool_diameter>] [#<ydir>] [#<xdir>]
+		o<_pm_check_error> call [#<pval>]
+		#<x3> = #[#<_pma_xpos>]
+		#<y3> = #[#<_pma_ypos>]
+		o<_pm_ts_xyprobe> call [#<ztravel>] [#<tool_diameter>] [-#<ydir>] [-#<xdir>]
+		o<_pm_check_error> call [#<pval>]
+		#<x4> = #[#<_pma_xpos>]
+		#<y4> = #[#<_pma_ypos>]
+		
+		o120 if [#<xdir>]
+			#<xc> = [[#<x1> + #<x2>] / 2]
+			#<yc> = [[#<y3> + #<y4>] / 2]
+		o120 else
+			#<xc> = [[#<x3> + #<x4>] / 2]
+			#<yx> = [[#<y1> + #<y2>] / 2]
+		o120 endif
+		
+		#[#<_pma_xpos>] = #<xc>
+		#[#<_pma_ypos>] = #<yc>
+		
+	o110 else
+		#[#<_pma_xpos>] = #<sx>
+		#[#<_pma_ypos>] = #<sy>
+		
+	o110 endif
+
+o<_pm_ts_dprobe> endsub [0]
+M2

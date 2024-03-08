@@ -1,0 +1,16 @@
+o<9801> sub
+
+    ; probe length calibration
+    ;  G65 P9801 Z<absolute reference height>
+    ;    unlike standard renishaw macros, the tool number is ignored as we can query the active tool
+    
+    o100 if [#<_pv_got_z>]
+    o100 else
+        (abort, Z offset required for probe calibration in G65 P9801)
+    o100 endif
+
+    o<_pm_check_probe_state> call [0]
+    o<_pm_cal_probe_length> call [#<_pv_z>] [#<_pv_tool_num>]
+        
+o<9801> endsub [0]
+M2

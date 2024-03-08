@@ -1,0 +1,34 @@
+o<_pm_ts_auto_move> sub
+
+	#<automode> = 1
+
+    o100 if [#<_ini[TOOLSENSOR]FIXED_TOOL_SENSOR>]
+		; santity check for position error issues
+		#<tpe> = [[#[#<_pma_cal_ts_xerror>] ** 2 + #[#<_pma_cal_ts_yerror>] ** 2] ** 0.5]
+		o110 if [#<tpe> gt #<_pv_ts_max_pos_error>]
+			#<xoff> = 0
+			#<yoff> = 0
+			o120 if [#[#<_pma_cal_ts_lvalid>]]
+				(msg, WARNING: Toolsetter position calibration out of tolerance, offset not used)
+			o120 endif
+		o110 else
+			#<xoff> = [#[#<_pma_cal_ts_xerror>] * #[#<_pma_cal_ts_lvalid>]]
+			#<yoff> = [#[#<_pma_cal_ts_yerror>] * #[#<_pma_cal_ts_lvalid>]]
+		o110 endif
+	
+        ; go to the zxy safe start point
+        G90
+        (print, _pm_ts_auto_move G90)
+        G53 G0 Z[#<_ini[PROBE_MACRO]Z_SAFE_TRAVEL_OFFSET>]
+        (print, _pm_ts_auto_move safe z move)
+        G53 G0 X[#<_ini[TOOLSENSOR]X> + #<xoff>] Y[#<_ini[TOOLSENSOR]Y> + #<yoff>]
+        (print, _pm_ts_auto_move move to xy setter location)
+        G53 G1 Z[#<_ini[TOOLSENSOR]Z>] F[#<_pmm_rapid_feedrate>]
+        (print, _pm_ts_auto_move move to initial z probe location)
+        #<automode> = 0
+    o100 endif
+
+	o<_pm_ts_auto_move> return [#<automode>]
+
+o<_pm_ts_auto_move> endsub [1]
+M2

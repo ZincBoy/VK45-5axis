@@ -1,0 +1,170 @@
+;used to check the tolerance of a probe measurement
+o<_pm_check_tolerance> sub
+
+    #<mode> = #1
+    #<has_x> = #2
+    #<has_y> = #3
+    #<has_z> = #4
+    #<x> = #5
+    #<y> = #6
+    #<z> = #7
+    #<h> = #8
+    #<m> = #9
+
+    #<xerr> = 0
+    #<yerr> = 0
+    #<zerr> = 0
+	#<angle_err> = 0
+    #<sizeerr> = 0
+    #<flags> = 0
+
+    o10 if [#<_pmm_error_status> NE 0]
+        o<_pm_check_tolerance> return [-1]
+    o10 endif
+
+    o100 if [#<mode> EQ 0]
+    
+        ;surface check mode
+        o200 if [#<has_x> GT 0]
+            #<xerr> = [#[#<_pma_xpos>] - #<x>]
+        o200 endif
+        o210 if [#<has_y> GT 0]
+            #<yerr> = [#[#<_pma_ypos>] - #<y>]
+        o210 endif
+        o220 if [#<has_z> GT 0]
+            #<zerr> = [#[#<_pma_zpos>] - #<z>]
+        o220 endif
+        
+    
+    o100 elseif [#<mode> EQ 1]
+        ;web/pocket check mode
+        o300 if [#<has_x> GT 0]
+            #<sizeerr> = [#[#<_pma_size>] - #<has_x>]
+            #<xerr> = [#[#<_pma_xpos>] - #<x>]
+        o300 endif
+        o310 if [#<has_y> GT 0]
+            #<sizeerr> = [#[#<_pma_size>] - #<has_y>]
+            #<yerr> = [#[#<_pma_ypos>] - #<y>]
+        o310 endif
+        o320 if [#<h> GT 0]
+            o321 if [[ABS[#<sizeerr>]] GT #<h>]
+                    ;set the error flag
+                    #<flags> = [#<flags> + 16]
+            o321 endif
+        o320 endif
+        
+        
+    o100 elseif [#<mode> EQ 2]
+        ;bore/boss check mode
+        #<sizeerr> = [#[#<_pma_size>] - #<has_x>]
+        #<xerr> = [#[#<_pma_xpos>] - #<x>]
+        #<yerr> = [#[#<_pma_ypos>] - #<y>]
+        o420 if [#<h> GT 0]
+            o421 if [[ABS[#<sizeerr>]] GT #<h>]
+                    ;set the error flag
+                    #<flags> = [#<flags> + 16]
+            o421 endif
+            o422 if [[ABS[#<xerr>]] GT #<h>]
+                    ;set the error flag
+                    #<flags> = [#<flags> + 1]
+            o422 endif
+            o423 if [[ABS[#<yerr>]] GT #<h>]
+                    ;set the error flag
+                    #<flags> = [#<flags> + 2]
+            o423 endif
+        o420 endif
+        
+    o100 elseif [#<mode> EQ 3]
+        ;corner check mode
+        #<xerr> = [#[#<_pma_xpos>] - #<x>]
+        #<yerr> = [#[#<_pma_ypos>] - #<y>]
+        o520 if [#<h> GT 0]
+            o522 if [[ABS[#<xerr>]] GT #<h>]
+                    ;set the error flag
+                    #<flags> = [#<flags> + 1]
+            o522 endif
+            o523 if [[ABS[#<yerr>]] GT #<h>]
+                    ;set the error flag
+                    #<flags> = [#<flags> + 2]
+            o523 endif
+        o520 endif
+		; angle tolerance
+		#<xang> = [#[#<_pma_angle>]]
+		#<yang> = [#[#<_pma_zerr>] - 90]
+		o535 if [abs[#<xang>] gt abs[#<yang>]]
+			#<angle_err> = #<xang>
+		o535 else
+			#<angle_err> = #<yang>
+		o535 endif
+		o536 if [[abs[#<angle_err>] gt #<z>] and #<has_z>]
+			;set the error flag
+			(print, angle error too large)
+			#<flags> = [#<flags> + 8]
+		o536 endif
+
+    o100 elseif [#<mode> EQ 4]
+        ;vector surface mode, vector web or pocket mode, 3point bore mode
+        #<sizeerr> = [#[#<_pma_size>] - #<has_z>]
+        #<xerr> = [#[#<_pma_xpos>] - #<has_x>]
+        #<yerr> = [#[#<_pma_ypos>] - #<has_y>]
+        o540 if [#<h> GT 0]
+            o542 if [[ABS[#<xerr>]] GT #<h>]
+                    ;set the error flag
+                    #<flags> = [#<flags> + 1]
+            o542 endif
+            o543 if [[ABS[#<yerr>]] GT #<h>]
+                    ;set the error flag
+                    #<flags> = [#<flags> + 2]
+            o543 endif
+        o540 endif
+
+	o100 elseif [#<mode> EQ 5]
+		;5 point rectangle position and angle mode
+		#<xerr> = [#[#<_pma_xpos>] - #<x>]
+		#<yerr> = [#[#<_pma_ypos>] - #<y>]
+		#<angle_err> = [[#<has_z> - #<z>] mod 360]
+		o640 if [#<angle_err> gt 180]
+			#<angle_err> = [#<angle_err> - 360]
+		o640 endif
+		; calculated at higher level, just set this to prevent overwrite
+		#<sizeerr> = #[#<_pma_size_err>]
+		o600 if [#<h> gt 0]
+			o610 if [abs[#<xerr>] gt #<h>]
+				(print, xerr too large)
+				#<flags> = [#<flags> + 1]
+			o610 endif
+			o620 if [abs[#<yerr>] gt #<h>]
+				(print, yerr too large)
+				#<flags> = [#<flags> + 2]
+			o620 endif
+			o625 if [abs[#<sizeerr>] gt #<h>]
+				(print, sizeerr too large)
+				#<flags> = [#<flags> + 16]
+			o625 endif
+		o600 endif
+		o630 if [#<_pv_got_j> and [abs[#<angle_err>] gt abs[#<_pv_j>]]]
+			;angle error, special override for this function
+			(print, angle error too large)
+			#<flags> = [#<flags> + 8]
+		o630 endif
+		
+    o100 endif
+
+    #<tpe> = [[[#<xerr> ** 2] + [#<yerr> ** 2] + [#<zerr> ** 2]] ** 0.5]
+    o110 if [#<m> GT 0]
+        o111 if [#<tpe> GT #<m>]
+            #<flags> = [#<flags> + 8]
+        o111 endif
+    o110 endif
+
+	(print, xerr: #<xerr> yerr: #<yerr> zerr: #<zerr> angle err: #<angle_err> tpe: #<tpe> size err: #<sizeerr> flags: #<flags>)
+    #[#<_pma_xerr>] = #<xerr>
+    #[#<_pma_yerr>] = #<yerr>
+    #[#<_pma_zerr>] = #<zerr>
+	#[#<_pma_angle_err>] = #<angle_err>
+    #[#<_pma_tpe>] = #<tpe>
+    #[#<_pma_size_err>] = #<sizeerr>
+
+    o<_pm_set_flags> call [#<flags>]
+
+o<_pm_check_tolerance> endsub [0]

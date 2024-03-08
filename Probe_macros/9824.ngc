@@ -1,0 +1,135 @@
+o<9824> sub
+; 5 point rectangle probe
+; params
+;  X D - nominal x length
+;  Y E - nominal y length
+;  z Z - z height for external measurement, not present for internal probe, will move to this position before every probe
+;  i a - 14 (default) = bottom face, 11 = right face, 12 = top face, 13 = left face, face with two probe points
+;  j b - half angle tolerance +/- of this value
+;  k h - X distance between the left  most top and bottom points and the bottom left of the virtual rectangle
+;  d t - X or Y distance between points on the same face
+;  e v - Y distance between the bottom most points and the bottom left of the virtual rectangle
+; 2d m - true position tolerance
+;  q q - probe overtravel override
+;  r r - radial clearance, negative for internal boss or web
+; 2q s - # work offset to be updated
+; 2r t - tool number to be updated
+; 2i u - upper tolerance limit, will alarm if this is exceeded
+; 2j v - null band, error must be greater than +/- this value before the tool offset will be adjusted
+;    w - print the output data
+; 2k   - % error feedback when updating tool offset
+; 2e   - experience value, tool offset with adjustment to be applied
+
+    #<sx> = #<_x>
+    #<sy> = #<_y>
+    #<sz> = #<_z>
+
+	o100 if [#<_pv_got_x> and #<_pv_got_y>]
+		o105 if [[#<_pv_x> LE [#<_pmm_default_probe_diameter> * 2]] or [#<_pv_y> LE [#<_pmm_default_probe_diameter> * 2]]]
+			(abort, G65 P#1 requires X and Y values greater than 2x the physical probe diameter)
+		o105 endif
+		#<width> = #<_pv_x>
+		#<height> = #<_pv_y>
+	o100 else
+		(abort, G65 P#1 requires both an X and Y value)
+	o100 endif
+
+	; probing orientation
+	o110 if [#<_pv_got_z>]
+		; this is an external measurement
+		#<zdown> = 1
+		o115 if [#<_incremental>]
+			(msg, Warning, incremental mode on, Z value is relative)
+			#<zheight> = [#<sz> + #<_pv_z>]
+		o115 else
+			#<zheight> = #<_pv_z>
+		o115 endif
+	o110 else
+		#<zheight> = 0
+		#<zdown> = 0
+	o110 endif
+	
+	o120 if [#<_pv_got_i>]
+		o125 if [[#<_pv_i> eq 11] or [#<_pv_i> eq 12] or [#<_pv_i> eq 13] or [#<_pv_i> eq 14]]
+			#<mode> = #<_pv_i>
+		o125 else
+			(abort, Invalid I value in G65 P#1, Got a #<_pv_i>, expected 11,12,13,14)
+		o125 endif
+	o120 else
+		;default
+		#<mode> = 14
+	o120 endif
+
+    ;only xy probe cal required
+    o<_pm_cal_check> call [0]
+    
+    o<_pm_check_probe_state> call [0]
+
+	o<_pm_5point_probe> call [#<sx>] [#<sy>] [#<mode>] [#<width>] [#<height>] [1] [#<_pv_clearance>] [#<zdown>] [#<zheight>]
+	#<p1x> = #[#<_pma_xpos>]
+	#<p1y> = #[#<_pma_ypos>]
+	o<_pm_5point_probe> call [#<sx>] [#<sy>] [#<mode>] [#<width>] [#<height>] [2] [#<_pv_clearance>] [#<zdown>] [#<zheight>]
+	#<p2x> = #[#<_pma_xpos>]
+	#<p2y> = #[#<_pma_ypos>]
+	o<_pm_5point_probe> call [#<sx>] [#<sy>] [#<mode>] [#<width>] [#<height>] [3] [#<_pv_clearance>] [#<zdown>] [#<zheight>]
+	#<p3x> = #[#<_pma_xpos>]
+	#<p3y> = #[#<_pma_ypos>]
+	o<_pm_5point_probe> call [#<sx>] [#<sy>] [#<mode>] [#<width>] [#<height>] [4] [#<_pv_clearance>] [#<zdown>] [#<zheight>]
+	#<p4x> = #[#<_pma_xpos>]
+	#<p4y> = #[#<_pma_ypos>]
+	o<_pm_5point_probe> call [#<sx>] [#<sy>] [#<mode>] [#<width>] [#<height>] [5] [#<_pv_clearance>] [#<zdown>] [#<zheight>]
+	#<p5x> = #[#<_pma_xpos>]
+	#<p5y> = #[#<_pma_ypos>]
+	
+	G90 G1 X[#<sx>] Y[#<sy>] F[#<_pmm_rapid_feedrate>]
+	
+	o200 if [#<mode> eq 11]
+		;right face
+		#<meas_width> = [[#<p1x> + #<p2x>] / 2 - #<p4x>]
+		#<meas_height> = [#<p3y> - #<p5y>]
+		#<meas_xc> = [#<p4x> + #<meas_width> / 2]
+		#<meas_yc> = [#<p5y> + #<meas_height> / 2]
+		#<meas_angle> = [ATAN[#<p1y> - #<p2y>]/[#<p1x> - #<p2x>]]
+		#<expect_angle> = 270
+	o200 elseif [#<mode> eq 12]
+		;top face
+		#<meas_width> = [#<p1x> - #<p4x>]
+		#<meas_height> = [[#<p3y> + #<p2y>] / 2 - #<p5y>]
+		#<meas_xc> = [#<p4x> + #<meas_width> / 2]
+		#<meas_yc> = [#<p5y> + #<meas_height> / 2]
+		#<meas_angle> = [ATAN[#<p2y> - #<p3y>]/[#<p2x> - #<p3x>]]
+		#<expect_angle> = 0
+	o200 elseif [#<mode> eq 13]
+		;left face
+		#<meas_width> = [#<p1x> - [#<p3x> + #<p4x>] / 2]
+		#<meas_height> = [#<p2y> - #<p5y>]
+		#<meas_xc> = [#<p1x> - #<meas_width> / 2]
+		#<meas_yc> = [#<p5y> + #<meas_height> / 2]
+		#<meas_angle> = [ATAN[#<p3y> - #<p4y>]/[#<p3x> - #<p4x>]]
+		#<expect_angle> = 90
+	o200 else
+		;bottom face - mode 14
+		#<meas_width> = [#<p1x> - #<p3x>]
+		#<meas_height> = [#<p2y> - [#<p4y> + #<p5y>] / 2]
+		#<meas_xc> = [#<p3x> + #<meas_width> / 2]
+		#<meas_yc> = [#<p2y> - #<meas_height> / 2]
+		#<meas_angle> = [ATAN[#<p4y> - #<p5y>]/[#<p4x> - #<p5x>]]
+		#<expect_angle> = 180
+	o200 endif
+	
+	#<size_err> = [[[#<width> - #<meas_width>] + [#<height> - #<meas_height>]] / 2]
+
+	#[#<_pma_size_err>] = #<size_err>
+	#[#<_pma_xpos>] = #<meas_xc>
+	#[#<_pma_ypos>] = #<meas_yc>
+	
+	(print, meas angle: #<meas_angle>, expect_angle: #<expect_angle>)
+	
+    o<_pm_check_tolerance> call [5] [1] [1] [#<expect_angle>] [#<sx>] [#<sy>] [#<meas_angle>] [0] [#<_pv_tpe_tol>]
+
+    o<_pm_set_workoffset> call [#<_pv_set_offset>] [#<_pv_offset_num>] [1] [1] [0] [#[#<_pma_xerr>]] [#[#<_pma_yerr>]] [0]
+
+    o<_pm_set_tooloffset> call [#<_pv_set_tool>] [#<_pv_tool_num>] [0] [0] [0] [1] [0]
+
+o<9824> endsub [0]
+M2

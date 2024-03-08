@@ -1,0 +1,80 @@
+o<_pm_parse_words> sub
+
+    o100 if [#<_pv_got_d>]
+        #<_pv_got_dimension> = 1
+        #<_pv_dimension> = #<_pv_d>
+    o100 else
+        #<_pv_got_dimension> = 0
+        #<_pv_dimension> = 0
+    o100 endif
+
+    o110 if [#<_pv_got_e>]
+        #<_pv_got_dimtol> = 1
+        #<_pv_dimtol> = #<_pv_e>
+    o110 else
+        #<_pv_got_dimtol> = 0
+        #<_pv_dimtol> = 0
+    o110 endif
+
+    o120 if [#<_pv_got_q>]
+        o125 if [#<_pv_q> LE 0]
+            (abort, overtravel overide Q can't be negative, got invalid G65 P#1 Q value)
+        o125 endif
+        #<_pv_search_dist> = #<_pv_q>
+    o120 else
+        #<_pv_search_dist> = #<_pmm_search_distance>
+    o120 endif
+
+    o130 if [#<_pv_got_r>]
+		#<_pv_got_clearance> = 1
+        #<_pv_clearance> = #<_pv_r>
+    o130 else
+		#<_pv_got_clearance> = 0
+        #<_pv_clearance> = #<_pmm_xy_clearance>
+    o130 endif
+  
+   ; parse aux values
+	o135 if [#<_pv_got_ext_e>]
+		; experience value
+		#<_pv_got_experience> = 1
+		#<_pv_experiene> = #<_pv_ext_e>
+	o135 else
+		#<_pv_got_experience> = 0
+		#<_pv_experiene> = 0
+	o135 endif
+    o140 if [#<_pv_got_ext_d>]
+        ;tpe tolerance
+        #<_pv_got_tpe> = 1
+        #<_pv_tpe_tol> = #<_pv_ext_d>
+    o140 elseif [#<_pv_ext_d> LT 0]
+        (abort, D word must be greater than 0 in G65 P#1 pre call)
+    o140 else
+        #<_pv_got_tpe> = 0
+        #<_pv_tpe_tol> = 0
+    o140 endif
+	
+    o150 if [#<_pv_got_ext_q>]
+        o155 if [[#<_pv_ext_q> LT 0] OR [#<_pv_ext_q> GT 9]]
+            (abort, Invalid work offset in G65 P#1 Q word)
+        o155 else
+            #<_pv_offset_num> = #<_pv_ext_q>
+            #<_pv_set_offset> = 1
+        o155 endif
+    o150 else
+        #<_pv_offset_num> = 0
+        #<_pv_set_offset> = 0
+    o150 endif
+    
+    ; tool number
+    o160 if [#<_pv_got_ext_r>]
+        #<_pv_set_tool> = 1
+        #<_pv_tool_num> = #<_pv_ext_r>
+    o160 else
+        ; Get the current tool number
+        #<_pv_set_tool> = 0
+        #<_pv_tool_num> = #<_current_tool>
+    o160 endif
+    
+    
+o<_pm_parse_words> endsub
+M2

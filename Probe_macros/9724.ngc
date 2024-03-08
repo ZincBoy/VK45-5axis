@@ -1,0 +1,15 @@
+o<9724> sub
+
+    ; set up the basic modal info and defaults
+    ; check for invalid words
+    o100 if [#<_pv_got_d> OR #<_pv_got_e> OR #<_pv_got_f> OR #<_pv_got_i> OR #<_pv_got_j> OR #<_pv_got_q> OR #<_pv_got_r>]
+       (abort, Invalid word in G65 P9724)
+    o100 endif
+    o200 if [#<_pv_got_k>]
+        o<_pm_default_settings> call [#<_pv_k>]
+    o200 else
+        o<_pm_default_settings> call [0]
+    o200 endif
+
+o<9724> endsub [0]
+M2

@@ -1,0 +1,6 @@
+o<9803> sub
+    ; just falls through to the same call as the 9802 function
+    o<9802> call [#1]
+
+o<9803> endsub
+M2

@@ -1,0 +1,21 @@
+; turn the probe on or off
+o<_pm_probe_power> sub
+
+    #<poweron> = #1
+    #<en_pin> = #<_ini[PROBE_MACRO]PROBE_ENABLE_PIN>
+    #<delay_time> = #<_ini[PROBE_MACRO]PROBE_ON_TIME>
+
+    o100 if [#<poweron>]
+        M64 P#<en_pin>
+        o101 if [#<_pmm_probe_on> EQ 0]
+            G4 P#<delay_time>
+        o101 endif
+        #<_pmm_probe_on> = 1
+    o100 else
+        M65 P#<en_pin>
+        #<_pmm_probe_on> = 0
+    o100 endif
+
+o<_pm_probe_power> endsub [0]
+M2
+

@@ -1,0 +1,119 @@
+component probe_selector3 "used to select which probe signal to use";
+pin in  bit spindle-probe-in;
+
+pin in  bit renishaw-probe-in;
+pin in  bit renishaw-error;
+pin in  bit renishaw-lowbat;
+
+pin in  bit enable-in;
+pin in  bit select-tool-probe-in;
+
+pin in  s32 tool-number;
+
+pin out bit out;
+pin out bit error;
+pin out bit lowbat;
+pin out bit enable-0;
+pin out bit enable-1;
+pin out bit enable-2;
+pin out bit enable-3;
+
+param rw s32 renishaw-tool-number = -1;
+param rw float glitch-filter-time = 0.1;
+
+variable float timerval = 0;
+variable int filterstate = 0;
+variable int filtered_probe = 0;
+
+author "alex lait";
+license "GPL";
+function _;
+
+;;
+
+FUNCTION(_){
+
+     int selected_probe;
+     
+     selected_probe = 0;
+
+     if (tool_number == renishaw_tool_number)
+     {
+         selected_probe = 1;  //force select the probe when it is loaded
+     }
+     
+     //gitch filter
+     timerval += fperiod;
+     switch (filterstate)
+     {
+         case 0:
+             timerval = 0;
+             if (renishaw_probe_in)
+             {
+                 filterstate = 1;
+                 filtered_probe = 1;
+             }
+             else
+             {
+                 filtered_probe = 0;
+             }
+             break;
+         case 1:
+             if (!renishaw_probe_in)
+             {
+                 filtered_probe = 0;
+             }
+             if (timerval >= glitch_filter_time && !filtered_probe)
+             {
+                 filterstate = 0;
+             }
+             break;
+         default:
+             filterstate = 0;
+             filtered_probe = renishaw_probe_in;
+     }
+     
+     
+     //but overide with the tool probe if it is selected
+     if (select_tool_probe_in) selected_probe = 2;
+
+     
+     switch (selected_probe) {
+          case 0: // spindle probe
+          	out = spindle_probe_in & enable_in;
+          	lowbat = 0;
+          	error = 0;
+          	enable_0 = 0;
+          	enable_1 = 0;
+          	enable_2 = 0;
+          	enable_3 = 0;
+          	break;
+          case 1: // renishaw spindle probe RMP
+               out = renishaw_probe_in & enable_in;
+               lowbat = renishaw_lowbat;
+               error = renishaw_error;
+               enable_0 = enable_in;
+			enable_1 = 0;
+			enable_2 = 0;
+			enable_3 = 0;
+               break;
+          case 2: // renishaw tool touch off RTS
+               out = filtered_probe & enable_in;
+               lowbat = renishaw_lowbat;
+               error = renishaw_error;
+               enable_0 = 0;
+			enable_1 = enable_in;
+			enable_2 = 0;
+			enable_3 = 0;
+               break;
+          default:
+               out = 0;
+               lowbat = 0;
+               enable_0 = 0;
+               enable_1 = 0;
+               enable_2 = 0;
+               enable_3 = 0;
+               error = 1;
+     }
+
+}
