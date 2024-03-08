@@ -1,0 +1,10 @@
+;set the probe and tolerance flags
+o<_pm_clear_flags> sub
+    
+    
+    #[#<_pma_tolerance_flag>] = 0
+    #[#<_pma_tool_break_flag>] = 0
+    #[#<_pma_probe_error>] = 0
+
+o<_pm_clear_flags> endsub
+M2

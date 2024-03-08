@@ -1,0 +1,71 @@
+o<_pm_clear_words> sub
+
+    #<_pv_got_x> = 0
+    #<_pv_x> = 0
+    #<_pv_got_y> = 0
+    #<_pv_y> = 0
+    #<_pv_got_z> = 0
+    #<_pv_z> = 0
+    #<_pv_got_a> = 0
+    #<_pv_a> = 0
+    #<_pv_got_b> = 0
+    #<_pv_b> = 0
+    #<_pv_got_c> = 0
+    #<_pv_c> = 0
+    #<_pv_got_d> = 0
+    #<_pv_d> = 0
+    #<_pv_got_e> = 0
+    #<_pv_e> = 0
+    #<_pv_got_f> = 0
+    #<_pv_f> = 0
+    #<_pv_got_i> = 0
+    #<_pv_i> = 0
+    #<_pv_got_j> = 0
+    #<_pv_j> = 0
+    #<_pv_got_k> = 0
+    #<_pv_k> = 0
+    #<_pv_got_q> = 0
+    #<_pv_q> = 0
+    #<_pv_got_r> = 0
+    #<_pv_r> = 0
+    #<_pv_got_u> = 0
+    #<_pv_u> = 0
+    #<_pv_got_v> = 0
+    #<_pv_v> = 0
+    #<_pv_got_w> = 0
+    #<_pv_w> = 0
+
+    o100 if [[#1] or [exists[#<_pv_got_ext_d>] EQ 0]]
+        #<_pv_got_ext_d> = 0
+        #<_pv_ext_d> = 0
+        #<_pv_got_ext_e> = 0
+        #<_pv_ext_e> = 0
+        #<_pv_got_ext_i> = 0
+        #<_pv_ext_i> = 0
+        #<_pv_got_ext_j> = 0
+        #<_pv_ext_j> = 0
+        #<_pv_got_ext_k> = 0
+        #<_pv_ext_k> = 0
+        #<_pv_got_ext_q> = 0
+        #<_pv_ext_q> = 0
+        #<_pv_got_ext_r> = 0
+        #<_pv_ext_r> = 0
+    o100 endif
+
+    #<_pv_got_dimension> = 0
+    #<_pv_dimension> = 0
+    #<_pv_got_dimtol> = 0
+    #<_pv_dimtol> = 0
+    #<_pv_set_tool> = 0
+    #<_pv_tool_num> = #<_current_tool>
+    #<_pv_offset_num> = 0
+    #<_pv_set_offset> = 0
+    #<_pv_got_tpe> = 0
+    #<_pv_tpe_tol> = 0
+;    #<got_print> = 0
+    #<_pv_search_dist> = #<_pmm_search_distance>
+	#<_pv_got_clearance> = 0
+    #<_pv_clearance> = #<_pmm_xy_clearance>
+
+o<_pm_clear_words> endsub [0]
+M2

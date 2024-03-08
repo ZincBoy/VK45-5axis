@@ -1,0 +1,78 @@
+T0 P0 D0.299900 Z+3.999900 ;comment 
+T52 P1 D0.498000 Z+3.907900 ;1/2 4ftl, 0.03cr, tialn, 1.75stick, sk16-2 
+T70 P2 D0.490000 Z+5.805392 ;12mm double chamfer 
+T20 P3 D0.062500 Z+6.653300 ;spindle speeder 1/16 two flute ball end 
+T12 P4 D0.250000 Z+6.668800 ;1/4 4 flute chamfer mill 90deg, 1.000 stckout, er25 holder 
+T53 P5 D0.249000 Z+3.684100 ;1/4in zcn 3flt em holder 
+T43 P6 D0.118000 Z+5.175400 ;m3 #1 floating tap holder 
+T80 P7 D0.375000 Z+6.615000 ;3/8 drill keyless chuck 
+T98 P8 D0.236200 Z+6.459500 U+1.000000 ;renishaw rpm60 probe 
+T30 P9 D0.984200 Z+6.643500 ;25mm 5rad 2 insert mill 
+T58 P10 D2.250000 Z+3.593100 ;2.25 0.81 thick saw 60 tooth 5/8 arbor 
+T17 P11 D0.393700 Z+8.310700 ;m10 tap er32 holder 
+T7 P12 D0.248000 Z+4.459400 ;1/4 4 flute tialn, .015cr, 1.06 stickout, em holder 
+T1 P13 D0.250000 Z+7.327700 ;center drill, extended er32 
+T13 P14 D-0.012000 Z+7.958400 ;thread mill, 0.24 dia, 0.16 shank, 48-18tpi, 0.6 cut depth, .78 stickout, sk10 holder 
+T9 P15 D0.123500 Z+4.143600 ;1/8 4 flute tialn, 0.75 stickout, sk10 holder 
+T27 P16 D-0.019000 Z+5.737300 ;thread mill 0.29 0.8 stick er32 holder 3.75 gauge 
+T82 P17 D0.300000 Z+6.890700 ;h keyless drill chuck 
+T81 P18 D0.400000 Z+7.453900 ;5.5mm keyless chuck 
+T26 P19 D0.249000 Z+5.905700 ;1.4 3flt reduced sholder 2i stick er32 holder 3.75 gauge 
+T71 P20 D1.968500 Z+4.121400 ;50mm 4flt tangental insert 4" gauge 
+T99 P21 D0.236000 Z-100.000000 U+1.000000 ;probe 
+T6 P22 D2.500000 Z-100.000000 ;65mm or 2.5in 3 flute aluminum shear mill, 3/8doc, 3.25in .75 shell arbor holder 
+T8 P23 D2.500000 Z-100.000000 ;65mm or 2.5in 3 flute aluminum shear mill, 3/8doc, 0.625in .75 shell arbor holder 
+T60 P24 D0.500000 Z+7.991900 ;1/2in 4flt finish, shrink fit 
+T23 P25 D1.000000 Z-100.000000 ;1in 4 flute hss 4.25 stickout, 4in flute length 
+T24 P26 D1.000000 Z-100.000000 ;1in 5 flute hss rougher, 6.5in stickout, 6in flute length 
+T14 P27 D1.015000 Z-100.000000 ;1.015 t cutter, 0.1875 flute length, 0.99 stickout, er32 holder 
+T64 P28 D0.500000 Z+5.449400 ;1/2 finish shrink fit 
+T11 P29 D0.498000 Z+3.981300 ;1/2 4ftl 0.03cr, tialn, 1.375 stickout, em holder 
+T21 P30 D0.250000 Z+5.959900 ;1/4 2 flute ball end, 1.67 stickout, er16 holder 
+T29 P31 D0.787400 Z+3.117900 ;tg100 holder 4in gauge 
+T42 P32 D0.078700 Z+5.092000 ;m2 #1 floating tap holder 
+T31 P33 Z-100.000000 ;tg100 holder 4in gauge 
+T32 P34 Z-100.000000 ;tg100 holder 4in gauge 
+T69 P35 D0.236200 Z+4.389100 ;6mm back chamfer sk10 
+T34 P36 D0.984200 Z+7.728300 ;25mm u drill. 75mm doc, tg100 holder 4in gauge 
+T35 P37 Z-100.000000 ;1.25in mill chuck 
+T44 P38 D0.196800 Z+5.508500 ;m5 tap floating holder 
+T50 P39 D3.000000 Z-100.000000 ;3in 6 insert 45deg, 1.0 shell mill arbor 
+T48 P40 D0.500000 Z+7.502300 ;1/2in ball 2 flute, 2in stickout, 1in flute er25 holder 5.0 gauge 
+T39 P41 Z-100.000000 ;1/8 end mill holder, long 
+T40 P42 Z-100.000000 ;3/8 end mill holder, long 
+T41 P43 Z-100.000000 ;5/8 end mill holder 
+T4 P44 D0.101500 Z+7.566000 ;#38 large drill chuck 
+T15 P45 D0.497000 Z+7.903400 ;1/2 4 flute reduced shank tialn, sq cr, 3.25 stickout, 1.125 flute length, sk16 holder 
+T65 P46 D5.000000 Z+4.399100 ;5" face mill 
+T10 P47 Z-100.000000 ;1/4 em holder 
+T46 P48 Z-100.000000 ;sk16 2" gauge 
+T47 P49 Z-100.000000 ;sk16 2" gauge 
+T22 P50 D0.098400 Z+8.089900 ;3mm drill chuck in 3/4 em holder 
+T18 P51 D1.250000 Z+6.152000 ;1.25in 6flute rougher 4in stickout 
+T67 P52 D0.125000 Z+8.752500 ;1/8 ball end 0.1875 flute taper shrink fit 
+T55 P53 D0.750000 Z+4.691300 ;3/4 3flt rough, 2stick, em holder 
+T3 P54 D0.255900 Z+6.392500 ;6.5mm drill chuck 
+T45 P55 D0.625000 Z+7.689100 ;#2 floating tap holder, 1/2, 3/4nc, 5/8 
+T72 P56 D1.968500 Z+7.653800 ;50mm 4flt tangental insert  7.5" gauge 
+T19 P57 D3.000000 Z+3.776400 ;3in 7 insert 90deg mill 
+T54 P58 D0.500000 Z+4.215100 ;1/2 3flt tcn hyd holder 
+T16 P59 D0.062500 Z+4.057600 ;1/16 two flute carbide, 0.5 stickout, 5/32 flute length, 1/8 shank 
+T51 P60 Z-100.000000 ;da100 holder drill only 
+T61 P61 D0.500000 Z+9.658500 ;1/2 ball end  4flt shrink fit 
+T59 P62 D0.500000 Z+4.215600 ;1/2 ball 4flt tialn 2.125 stick reduced hydraulic 
+T63 P63 D2.250000 Z+2.562000 ;slitting saw 0.032thick, 60tooth 
+T33 P64 D0.787400 Z+3.116800 ;20mm t slot alt sk16 
+T5 P65 D0.375000 Z-100.000000 ;3/8 3flt 0.06cr alum er32 holder 
+T25 P66 D0.500000 Z-100.000000 ;1/2 3flt ball zcn alum 1.75stick er32 holder 3.75 gauge 
+T36 P67 D0.595000 Z+6.422200 ;3/4 thread mill 1.25in mill chuck 
+T49 P68 D1.008500 Z+7.444000 I+2.000000 J+270.000000 ;boring head 
+T66 P69 D0.157500 Z+3.823200 ;4mm ball shrink fit 
+T57 P70 D2.000000 Z+5.766500 ;2" extended face mill 
+T28 P71 D0.390400 Z+4.951900 ;10mm lollypop 
+T37 P72 D3.937000 Z+3.992200 ;100mm 6 flute face mill 
+T2 P80 D0.128500 Z+7.160900 ;n30 drill chuck 
+T38 P81 D1.259800 Z+9.806600 ;32mm u drill 
+T62 P82 D0.500000 Z+5.818200 ;1/2 4flt sq, 1.75stick, 3.5ga shrink fit 
+T90 P90 D0.010000 Z+7.559800 I+2.000000 ;0.01" air spindle 
+T101 P101 D0.299900 Z+3.999900 ;probe calibrator 

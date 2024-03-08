@@ -1,0 +1,67 @@
+component scurvefilter "s-curve planner";
+pin in float input;
+pin out float output;
+param rw float accel=1.0; 
+param rw float jerk=1.0;  
+param rw float maxvel = 1.0;
+param rw float minvel = -1.0;
+param rw float error_tolerance = 1.1;
+
+variable int curstate = 0;
+
+variable float current_accel = 0;
+variable float last_target = 0;
+
+author "alex lait";
+license "GPL";
+function _;
+
+;;
+#include "rtapi_math.h"
+
+enum StateVals {
+     s_constval = 0,
+     s_accel_jerk,
+     s_decel_jerk,
+     s_const_accel,
+     };
+
+FUNCTION(_){
+
+	double dist_to_stop = (current_accel * current_accel)/jerk;
+	double current_velocity = output;
+	double max_accel = accel - jerk/accel;
+	double min_jerk_step = jerk * fperiod * fperiod;
+	double accel_increment = 0;
+
+	if (fabs(current_accel) <= max_accel)
+	{
+		if ((input - current_velocity) > dist_to_stop)
+		{
+			accel_increment = jerk * fperiod;
+		}
+		else if (((current_velocity - input) > dist_to_stop) && (current_accel <= 0))
+		{
+			accel_increment = -jerk * fperiod;
+		}
+	}
+	if (((input - current_velocity) < dist_to_stop) && (current_accel > 0))
+	{
+		accel_increment = -jerk * fperiod;
+	}
+	if (((current_velocity - input) < dist_to_stop) && (current_accel <= 0))
+	{
+		accel_increment = jerk * fperiod;
+	}
+	
+	current_accel += accel_increment;
+	current_velocity += current_accel * fperiod;
+	
+	//prevent oscillation around setpoint due to quantization error
+	if (fabs(current_velocity - input) <= min_jerk_step * error_tolerance)
+		current_velocity = input;
+	
+
+	output = current_velocity;
+
+}

@@ -1,0 +1,61 @@
+; M6 override for VK45 mill.
+
+o<toolchange_override> sub
+
+;(debug, in change tool_in_spindle=#<tool_in_spindle> current_pocket=#<current_pocket>)
+;(debug, selected_tool=#<selected_tool> selected_pocket=#<selected_pocket>)
+
+; We must execute this only in the milltask interpreter
+; or preview will break, so test for '#<_task>' which is 1 for
+; the milltask interpreter and 0 in the UI's
+O100 if [#<_task> EQ 0]
+    O100 return [999]
+O100 endif
+
+;skip if the tool is already in the spindle
+o105 if [#<selected_tool> EQ #<tool_in_spindle>]
+	o<toolchange_override> return [1]
+o105 endif
+
+; Save some info, otherwise after the M6 this information is gone!
+#<current_tool> = #<selected_tool>
+#<current_pocket> = #<selected_pocket>
+
+; start the spindle alignment, this will run while we are moving to the toolchange position
+M64 P[#<_ini[TOOLCHANGER]START_ORIENT_PIN>]
+
+; must be in absolute mode to use g53
+#<incmode> = 0
+o110 if [#<_incremental>]
+	#<incmode> = 1
+	G90
+o110 endif
+
+; First go up & then move Y to change position, X can stay where it is.
+G53 G0 Z[#<_ini[TOOLCHANGER]Z>]
+G53 G0 Y[#<_ini[TOOLCHANGER]Y>]
+
+; Cancel tool offset
+G49
+
+; all the heavy lifting is done in the VK45toolchange.comp
+M6
+
+; auto apply offsets if tool number is not zero.  
+; I can't think of any time I would want M6 called without immediatly following with this.
+; If the G code file calls it again, no problem.  This is mostly for being lazy with MDI.
+O120 if [#<current_tool> GT 0]
+     G43 H[#<current_tool>]
+O120 endif
+
+;turn off the spindle orient
+M65 P[#<_ini[TOOLCHANGER]START_ORIENT_PIN>]
+
+; return to g91 if we entered with incremental mode
+o130 if [#<incmode>]
+	G91
+o130 endif
+
+; signal success by returning a value > 0:
+o<toolchange_override> endsub [1]
+m2

@@ -1,0 +1,51 @@
+; probe length calibration function
+;   will store the result in the tool offset for the specified tool
+;   if no tool is specified, it will use the current tool
+o<_pm_cal_probe_length> sub
+
+    #<z_offset> = #1
+    #<toolnum> = #2
+
+    #<search_dist> = #<_pmm_search_distance>
+    
+    o100 if [#<_pmm_error_status> NE 0]
+        o<_pm_cal_probe_length> return [-1]
+    o100 endif
+
+    ; probe down, need to be close to the reference surface already
+    o<_pm_probe> call [#<search_dist>] [#<_pmm_backoff_distance>] [0] [90] [1]
+    o105 if [#<_pmm_error_status> NE 0]
+        o<_pm_cal_probe_length> return [-1]
+    o105 endif
+    
+    
+    ; find the offsets to remove
+    #<ztooloffset> = 0
+    O110 if [#<_tool_offset> EQ 1]
+        #<ztooloffset> = #5403
+    O110 endif
+    #<zworkoffset> = #[5203 + #5220 * 20]
+    #<zg92> = 0
+    O111 if [#5210 EQ 1]
+        #<zg92> = #5213
+    O111 endif
+    
+    ; back out the offsets so we get the raw value
+    #<touch_result> = [#[#<_pma_zpos>] + #<ztooloffset> + #<zworkoffset> + #<zg92> - #<z_offset>]
+    #<zpos> = #[#<_pma_zpos>]
+    (print, touch_result = #<touch_result>)
+    (print, z probe value = #<zpos>)
+    (print, ztooloffset = #<ztooloffset>)
+    (print, zworkoffset = #<zworkoffset>)
+    (print, g92 offset = #<zg92>)
+    
+    
+    ; apply the new tool length
+    G10 L1 P[#<toolnum>] Z[#<touch_result>]
+
+    ; apply new tool offset
+    G43
+
+o<_pm_cal_probe_length> endsub
+M2
+

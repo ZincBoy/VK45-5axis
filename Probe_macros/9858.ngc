@@ -1,0 +1,101 @@
+o<9858> sub
+; Broken tool detection
+;   j [b] - 1 = length [default], 2 = diameter only, 3 = length and diameter
+;   d     - Reference tool diameter, + for right, - for left
+;     [e] - tool radius offset number - not used
+;   r     - overtravel distance
+;     [t] - tool offset number, we will only use the active tool
+;   q     - probe overtravel 4mm default
+;   z     - position for diameter measurement - for non-square edges
+;   i [m] - broken tool flag, if word is present the broken tool flag will be set but the system will not abort
+;   E [h] - tolerance +/- of the value programmed
+
+	;turn on the probe
+	o<9852> call [#1]
+	
+    o<_pm_check_probe_state> call [1]
+    
+    o<_pm_ts_parse_words> call
+
+    #<tool_break> = 0
+    
+    ; read the tool table to get the left/right and orient requirements for the tool
+    #<tool_left> = 0
+	#<tool_orient> = 0
+    #<tool_angle> = 0
+    o100 if [[#5411 EQ 1] or [#5411 EQ 3]]
+        ;left hand tool, force the diameter to negative
+        #<_pv_ts_ref_dia> = [-abs[#<_pv_ts_ref_dia>]]
+        #<tool_left> = 1
+    o100 elseif [#5411 EQ 2]
+        #<tool_orient> = 1
+        #<tool_angle> = #5412
+    o100 endif
+    o110 if [#<_pv_ts_break_tol> EQ 0]
+        (abort, Tool break detection requires E word to be set with break tolerance)
+    o110 endif
+    
+    #<rapidfeed> = #<_pmm_rapid_feedrate>
+
+	; move to start point if needed
+	o<_pm_ts_auto_move> call
+	#<automode> = #<_value>
+    
+    #<ztravel> = [#<_pv_ts_overtravel> + #<_pv_ts_probe_overtravel>]
+
+    o<_pm_ts_zprobe> call [#<ztravel>] [#<_pv_ts_ref_dia>] [#<_ini[TOOLSENSOR]XOFF>] [#<_ini[TOOLSENSOR]YOFF>] [#<tool_orient>] [#<tool_angle>]
+
+    ; turn off the spindle
+	M5
+	
+    o210 if [#<_pmm_error_status> EQ -110]
+        ; tool did not make contact, tool is broken
+        #<tool_break> = 1
+        ;clear the error
+        #<_pmm_error_status> = 0
+    o210 else
+        ; abort if anything else went wrong
+        o<_pm_check_error> call
+        
+        #<raw_result> = #[#<_pma_zpos>]
+        o220 if [#<_tool_offset>]
+            #<ztooloffset> = #5403
+        o220 else
+            #<ztooloffset> = 0
+        o220 endif
+        ; calc offset value, current work offset and g92/52 offset
+        #<workoffset> = [#[5203 + #5220 * 20] + #5213 * #5210]
+		
+        #<touch_result> = [#<raw_result> + #<ztooloffset> + #<workoffset>]
+ 
+		#<tool_length> = [#<touch_result> + #<ztooloffset> - #[#<_pma_cal_ts_height>]]
+        
+        #<tool_error> = abs[#<tool_length> - #5403]
+		
+        (print, Touch_result: #<touch_result> Tool Length: #<tool_length> Tool Error: #<tool_error>)
+		
+        o230 if [#<tool_error> GT #<_pv_ts_break_tol>]
+            #<tool_break> = 1
+        o230 endif
+                
+    o210 endif
+
+    o240 if [#<tool_break>]
+        o250 if [#<_pv_ts_flag_broken_tool>]
+            ;just set the broken tool flag so the program can deal with it
+			(print, tool break detected)
+            #[#<_pma_tool_break_flag>] = 1
+        o250 else
+            (abort, Tool break detected)
+        o250 endif
+    o240 endif
+    
+    o300 if [#<automode>]
+        G53 G0 Z[#<_ini[TOOLSENSOR]Z>]
+    o300 endif
+
+	;turn off the probe
+	o<9853> call
+    
+o<9858> endsub [0]
+M2

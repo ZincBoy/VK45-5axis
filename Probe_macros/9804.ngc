@@ -1,0 +1,41 @@
+o<9804> sub
+        ;vector calibration
+        ; 
+        ; G65 P9804 D<standard diameter> z<z offset for pin gauge> K<0-ring, 1-pin, 2-sphere>
+        
+    o100 if [#<_pv_dimension> LE 0]
+        (abort, D value must be greater than 0 for G65 P#1)
+    o100 endif
+    
+    #<mode> = 0
+    #<zval> = 0
+
+    o200 if [#<_pv_got_k>]
+        o210 if [[#<_pv_k> EQ 0] OR [#<_pv_k> EQ 2]]
+            #<mode> = #<_pv_k>
+        o210 elseif [#<_pv_k> EQ 1]
+            o220 if [#<_pv_got_z>]
+                #<mode> = #<_pv_k>
+                #<zval> = #<_pv_z>
+            o220 else
+                (abort, Z word must be present when K=1 in G65 P9804)
+            o220 endif
+        o210 else
+            (abort, Invalid K word in G65 P9804)
+		o210 endif
+    o200 elseif [#<_pv_got_z>]
+        #<mode> = 1
+        #<zval> = #<_pv_z>
+    o200 endif
+    
+    o<_pm_check_probe_state> call [0]
+	
+	;need a valid xy cal before running the vector cal
+	o<_pm_cal_check> call [0]
+	
+    ;data is stored in the active cal memory
+    o<_pm_cal_probe_vector> call [#<_pv_dimension>] [#<mode>] [#<_pmm_default_probe_diameter>] [#<zval>] [#<_pv_clearance>]
+
+
+o<9804> endsub
+M2

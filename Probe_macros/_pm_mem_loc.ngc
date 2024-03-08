@@ -1,0 +1,120 @@
+o<_pm_mem_loc> sub
+
+    ; set up addresses of the variables
+    ;  variables are referenced as : #<myvar> = ##<_pma_xpos> = #[#_pma_xpos]
+
+    #<_pma_base_num> =              161
+    ; set to the calibration memory block base address
+    #<_pma_active_tool_length> =    166
+    #<_pma_probe_feedrate> =        167
+    #<_pma_radius_too_large> =      168
+    #<_pma_fast_feedrate> =         169
+    ; used to select the cal offset rad or dia
+    #<_pma_setting_var> =           170
+    #<_pma_component_num> =         171
+    #<_pma_feature_num> =           172
+    #<_pma_position_zone> =         173
+    #<_pma_xskip_pos> =             174
+    #<_pma_yskip_pos> =             175
+    #<_pma_zskip_pos> =             176
+    #<_pma_xavgskip_pos> =          177
+    #<_pma_yavgskip_pos> =          178
+    #<_pma_unit_multiplier> =       179
+
+    ; used for feature to feature macro 9834 output
+    #<_pma_start_xpos> =            180
+    #<_pma_start_ypos> =            181
+    #<_pma_start_zpos> =            182
+    #<_pma_start_size> =            183
+    #<_pma_start_angle> =           184
+
+    ;****** output locations
+    ; also x incremental distance
+    #<_pma_xpos> =                  185
+    ; also y incremental distance
+    #<_pma_ypos> =                  186
+    ; also z incremental distance
+    #<_pma_zpos> =                  187
+    ; also minimum distance
+    #<_pma_size> =                  188
+    ; can be x axis angle or 4th axis angle
+    #<_pma_angle> =                 189
+    #<_pma_xerr> =                  190
+    #<_pma_yerr> =                  191
+    ; also y surface angle and PCD error
+    #<_pma_zerr> =                  192
+    ; also used for y angle error and height error
+    #<_pma_size_err> =              193
+    ; minimum distance error
+    #<_pma_angle_err> =             194
+    ; also maximim value
+    #<_pma_tpe> =                   195
+    ; true position error, also minimum value
+    #<_pma_metal_cond> =            196
+    ; also stock variation
+    #<_pma_direction> =             197
+    ; also hold number
+    #<_pma_tolerance_flag> =        198
+    #<_pma_probe_error> =           199
+    #<_pma_tool_break_flag> =       200
+    
+    ; Probe calibration data structure
+    #<_pma_cal_base> =              556
+    ; offsets from base address
+    #<_pma_cal_xrad> =              0 ; 556
+    #<_pma_cal_yrad> =              1 ; 557
+    #<_pma_cal_xoff> =              2 ; 558
+    #<_pma_cal_yoff> =              3 ; 559
+    #<_pma_cal_backoff> =           6 ; 560
+    #<_pma_cal_active_vector> =     9 ; 563
+
+    #<_pma_cal_vec_base> =          566
+    ; 30, 60, 120, 150, 210, 240, 300, 330  stored in the next 8 addresses
+    ; end of cal data block at #573,
+    
+    ; multi probe cal storage NOTE: memory locations 3 and 4 are not renishaw standard
+    #<_pma_cal_k1_base> =           574
+    #<_pma_cal_k2_base> =           578
+    #<_pma_cal_k3_base> =           600
+    #<_pma_cal_k4_base> =           604
+    #<_pma_cal_k11_base> =          582
+    #<_pma_cal_k12_base> =          590
+    #<_pma_cal_k13_base> =          608
+    #<_pma_cal_k14_base> =          616
+
+    ; tool setter cal values
+    #<_pma_cal_ts_zvalid> =         650
+    #<_pma_cal_ts_dvalid> =         651
+	#<_pma_cal_ts_lvalid> =         652
+    #<_pma_cal_ts_height> =         653
+    #<_pma_cal_ts_diameter> =       654
+	#<_pma_cal_ts_xerror> =         655
+	#<_pma_cal_ts_yerror> =	        656
+    
+    ; internal globals
+    #<_pmm_probe_on> =              0
+    #<_pmm_probe_sel> =             0
+    
+    ; will be set to ini values in _pm_default_settings, just here for reference
+    #<_pmm_settlingtime> =          0
+    #<_pmm_rapid_feedrate> =        0
+    #<_pmm_search_distance> =       0
+    ; this could use _pma_position_zone but the way renishaw does this doesn't make sense to me
+    #<_pmm_backoff_distance> =      0
+    #<_pmm_default_probe_diameter>= 0
+	#<_pmm_xy_clearance> =			0
+	
+    ; used to track error status in sub calls to simplify the code
+    ;   only meant to be used internally
+    #<_pmm_error_status> =          0
+
+    ; clear and init the extra config words
+    o<_pm_clear_words> call [1]
+    
+    ; memory needs to be initialized
+    o<_pm_default_settings> call [0]
+
+o<_pm_mem_loc> endsub [0]
+M2
+
+

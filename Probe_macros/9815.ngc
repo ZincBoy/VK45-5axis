@@ -1,0 +1,97 @@
+o<9815> sub
+;also the 9816 call
+    ; inside (9815) and outside (9816) corner
+	;  implemented
+	;  |  renishaw standard
+	;  |  |
+	;  X  X  corner position x
+	;  Y  Y  corner position y
+	;  Z  Z  measuring height, will go to this level before every probe
+	;  k  b  Angular tolerance value - applied to both x and y angles if I and J are present
+	;  d  d  x distance from corner to probe, defaults to 0 for internal and the x distance from the corner for external
+	;  e  e  y distance from corner to probe, defaults to 0 for internal and the y distance from the corner for external
+	;  i  i  x incremental distance for second probe point
+	;  j  j  y incremental distance for second probe point
+	;  q  q  probe overtravel (past target point)
+	;  |  |
+	;  |  | Values set with extended g65 p9000 pre call
+	;  q  s  number of work offset to be updated
+	;  d  m  true position error allowance
+	
+	o010 if [#<_pv_set_tool>]
+		(abort, G65 P#1 Tool setting not allowed on corner probe)
+	o010 endif
+	
+    o100 if [#<_pv_got_x> AND #<_pv_got_y>]
+        #<x> = #<_pv_x>
+        #<y> = #<_pv_y>
+    o100 else
+        (abort, Both X and Y words required for P#1)
+    o100 endif
+    o110 if [#<_pv_got_k>]
+		#<checkangle> = 1
+		#<angtol> = #<_pv_k>
+	o110 else
+		#<checkangle> = 0
+		#<angtol> = 0
+	o110 endif
+    o120 if [#<_pv_got_i>]
+        #<xinc> = [#<_pv_i> * #<_pmm_scale>]
+    o120 else
+        #<xinc> = 0
+    o120 endif
+    o130 if [#<_pv_got_j>]
+        #<yinc> = [#<_pv_j> * #<_pmm_scale>]
+    o130 else
+        #<yinc> = 0
+    o130 endif
+	o140 if [#<_pv_got_d>]
+		#<xstart> = #<_pv_d>
+	o140 else
+		#<xstart> = 0
+	o140 endif
+	o150 if [#<_pv_got_e>]
+		#<ystart> = #<_pv_e>
+	o150 else
+		#<ystart> = 0
+	o150 endif
+	o160 if [#<_pv_got_z>]
+		#<zdown> = 1
+		o165 if [#<_incremental>]
+			(msg, Warning, Incremental mode with Z value, using Z input as incremental)
+			#<z> = [#<_z> + #<_pv_z>]
+		o165 else
+			#<z> = #<_pv_z>
+		o165 endif
+	o160 else
+		#<zdown> = 0
+		#<z> = 0
+	o160 endif
+		
+	
+    o200 if [#1 EQ 9815]
+        ;inside corner
+        #<dir> = -1
+    o200 else
+        ;external corner
+        #<dir> = 1
+    o200 endif
+	
+	
+
+    ;only xy probe cal required
+    o<_pm_cal_check> call [0]
+
+    o<_pm_check_probe_state> call [0]
+    
+    o<_pm_corner_measure> call [#<x>] [#<y>] [#<xinc>] [#<yinc>] [#<xstart>] [#<ystart>] [#<dir>] [#<_pv_search_dist>] [#<zdown>] [#<z>]
+
+    o<_pm_check_tolerance> call [3] [1] [1] [#<checkangle>] [#<x>] [#<y>] [#<angtol>] [0] [#<_pv_tpe_tol>]
+
+    o<_pm_set_workoffset> call [#<_pv_set_offset>] [#<_pv_offset_num>] [1] [1] [0] [#[#<_pma_xerr>]] [#[#<_pma_yerr>]] [0]
+
+	; tool setting not allowed on corner probe
+    ;o<_pm_set_tooloffset> call [#<_pv_set_tool>] [#<_pv_tool_num>] [1] [1] [0] [0] [0]
+
+o<9815> endsub [0]
+M2

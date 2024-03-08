@@ -1,0 +1,211 @@
+component gearchange4 "A component to choose spindle gears according to spindle speed";
+
+pin in  float speed-command;            //spindle.0.speed-out
+pin in  float speed-pid-value;          //spindle pid .output
+pin in  bit spindle-on;                 //spindle.0.on
+pin in  bit switch-low;                 //feedback, high if the gearbox is in low gear
+pin in  bit switch-high;                //feedback, high if the gearbox is in high gear
+pin out float motor-speed;              //voltage to send to the drive to control the motor rpm
+pin out bit spindle-on-delay;           //spindle drive enable output
+pin out bit low-gear;                   //low gear solinoid output
+pin out bit high-gear;                  //high gear solinoid output
+pin out bit shift-done;                 //high when the gearbox is in gear,
+                                        //  logical 'and' this with the output of the spindle at speed 'near' 
+                                        //  function to create an interlocked spindle-at-speed signal
+pin io  bit index-enable;               //used to reset the spindle positiom on gear change
+param rw float low-ratio=0.008939;      //multiply the RPM value by this to get the +/-10V voltage output in low gear
+param rw float high-ratio=0.001667;     //multiply the RPM value by this to get the +/-10V voltage output in high gear
+param rw float max-low = 1100.00;       //maximum RPM allowed in low gear
+param rw float change-speed = 0.30;     //voltage to set on the drive during the change, 
+                                        //  needed if the spindle needs to be turning during the gear change
+param rw float shift-time = 5.0;        //if the shift takes longer than this an error will be thrown
+
+variable double timer = 0;
+variable int currentstate = 0;
+variable double absspeed = 0;
+
+author "alex lait";
+license "GPL";
+function _;
+
+;;
+
+enum StateVals {
+     startup_delay = 0,
+     init,
+     low_off,
+     low_to_high,
+     low_on,
+     high_off,
+     high_to_low,
+     high_on,
+     error,
+     };
+
+
+FUNCTION(_){
+
+    if (speed_command < 0.0)
+        absspeed = -speed_command;
+    else
+        absspeed = speed_command;
+
+    switch (currentstate)
+    {
+        // delay until input reads are steady 0
+        case startup_delay:
+            timer += fperiod;
+            if (timer > 1) {
+                timer = 0;
+                currentstate = init;
+            }
+            break;
+        
+        // starting state, figure out where we are 1
+        case init:
+            if (switch_low) {
+                low_gear = 1;
+                high_gear = 0;
+                currentstate = low_off;
+            } else if (switch_high) {
+                low_gear = 0;
+                high_gear = 1;
+                currentstate = high_off;
+            } else { //we are not in either gear, try to shift when the spindle turns on
+                if (spindle_on) {
+                    if (absspeed > max_low) {
+                        low_gear = 0;
+                        high_gear = 1;
+                        currentstate = low_to_high;
+                    } else {
+                        low_gear = 1;
+                        high_gear = 0;
+                        currentstate = high_to_low;
+                    }
+                }
+            }
+            break;
+            
+        //low gear, spindle off 2
+        case low_off:
+            if (spindle_on) {
+                if (absspeed > max_low) {
+                    high_gear = 1;
+                    low_gear = 0;
+                    currentstate = low_to_high;
+                } else {
+                    spindle_on_delay = 1;
+                    currentstate = low_on;
+                }
+            }
+            motor_speed = 0;
+            shift_done = 0;
+            break;
+
+        //low to high gear change 3
+        case low_to_high:
+            //disable the spindle drive if the change speed is zero
+            if (change_speed == 0)
+                spindle_on_delay = 0;
+            else
+                spindle_on_delay = 1;
+            if (speed_command > 0)
+                motor_speed = change_speed;
+            else
+                motor_speed = -change_speed;
+
+            if (switch_high) {
+                index_enable = 1;
+                currentstate = high_on;
+            }
+            timer += fperiod;
+            if (timer > shift_time) {
+                timer = 0;
+                rtapi_print_msg(RTAPI_MSG_ERR,"Spindle timed out on low to high shift\n");
+                currentstate = error;
+                spindle_on_delay = 0;
+            }
+            break;
+
+        //low gear, spindle on 4
+        case low_on:
+            if (!spindle_on) {
+                currentstate = low_off;
+                spindle_on_delay = 0;
+            } else {
+                motor_speed = speed_pid_value * low_ratio;
+                shift_done = 1;
+                spindle_on_delay = 1;
+            }
+            break;
+
+        //high gear, spindle off 5
+        case high_off:
+            if (spindle_on) {
+                if (absspeed <= max_low) {
+                    high_gear = 0;
+                    low_gear = 1;
+                    currentstate = high_to_low;
+                } else {
+                    spindle_on_delay = 1;
+                    currentstate = high_on;
+                }
+            }
+            motor_speed = 0;
+            shift_done = 0;
+            break;
+
+        //high to low gear change 6
+        case high_to_low:
+            //disable the spindle drive if the change speed is zero
+            if (change_speed == 0)
+                spindle_on_delay = 0;
+            else
+                spindle_on_delay = 1;
+            if (speed_command > 0)
+                motor_speed = change_speed;
+            else
+                motor_speed = -change_speed;
+
+            if (switch_low) {
+                index_enable = 1;
+                currentstate = low_on;
+            }
+            timer += fperiod;
+            if (timer > shift_time) {
+                timer = 0;
+                rtapi_print_msg(RTAPI_MSG_ERR,"Spindle timed out on high to low shift\n");
+                currentstate = error;
+                spindle_on_delay = 0;
+            }
+            break;
+
+        //high gear, spindle on 7
+        case high_on:
+            if (!spindle_on) {
+                currentstate = high_off;
+                spindle_on_delay = 0;
+            } else {
+                motor_speed = speed_pid_value * high_ratio;
+                shift_done = 1;
+                spindle_on_delay = 1;
+            }
+            break;
+        
+        // fault state, wait for spindle to be disabled before returning to idle 8
+        case error:
+            spindle_on_delay = 0;
+            motor_speed = 0;
+            if (!spindle_on) {
+               currentstate = init;
+            }
+            break;
+            
+
+        default:
+            rtapi_print_msg(RTAPI_MSG_ERR,"Unexpected state encountered in gearchange comp.");
+            currentstate = error;
+    }
+
+}
+

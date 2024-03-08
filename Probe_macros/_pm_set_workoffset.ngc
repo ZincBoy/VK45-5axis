@@ -1,0 +1,35 @@
+o<_pm_set_workoffset> sub
+
+    #<mode> =       #1
+    #<offset> =     #2
+    #<setx> =       #3
+    #<sety> =       #4
+    #<setz> =       #5
+    #<xoff> =       #6
+    #<yoff> =       #7
+    #<zoff> =       #8
+    
+    o10 if [#<_pmm_error_status>]
+        o<_pm_set_workoffset> return [-1]
+    o10 endif
+    
+	o100 if [#<offset>]
+		o110 if [[#<offset> gt 9] or [#<offset> lt 0]]
+			(abort, Workoffset outside of allowed range.  Must be 0 to 9, got #<offset>)
+		o110 endif
+	o100 else
+		; find the current work offset
+		#<offset> = #5220
+	o100 endif
+	
+	; offset is 1 to 9 so address is offset by -20
+	#<xcorr> = [#[5201 + #<offset> * 20] + #<xoff>]
+	#<ycorr> = [#[5202 + #<offset> * 20] + #<yoff>]
+	#<zcorr> = [#[5203 + #<offset> * 20] + #<zoff>]
+	
+	o200 if [#<mode>]
+		G10 L2 P[#<offset>] X[#<xcorr>] Y[#<ycorr>] Z[#<zcorr>]
+	o200 endif
+
+o<_pm_set_workoffset> endsub [0]
+M2

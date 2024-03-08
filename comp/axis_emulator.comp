@@ -1,0 +1,73 @@
+component axis_emulator "used to emulate a physical axis when it is not installed, ie A axis";
+pin in    bit   axis-connected;
+pin in    bit   amp-enable-in;
+pin in    bit   home-sw-in;
+pin in    float pos-cmd-in;
+pin in    float pos-fb-in;
+pin in    bit   amp-fault-in;
+pin out   bit   amp-enable-out;
+pin out   bit   home-sw-out;
+pin out   float pos-cmd-out;
+pin out   float pos-fb-out;
+pin out   bit   amp-fault-out;
+pin io    bit   enc-index;
+pin io    bit   enc-index-buf;
+
+variable int enc_last_val = 0;
+
+author "alex lait";
+license "GPL";
+function _;
+
+;;
+#include "rtapi_math.h"
+
+
+FUNCTION(_){
+
+	if (axis_connected)
+	{
+		//axis is connected
+		amp_enable_out = amp_enable_in;
+		pos_cmd_out = pos_cmd_in;
+		home_sw_out = home_sw_in;
+		pos_fb_out = pos_fb_in;
+		amp_fault_out = amp_fault_in;
+		
+		if (!enc_last_val && enc_index_buf)
+		{
+			enc_index = 1;
+			enc_last_val = 1;
+		}
+		else if (enc_last_val && !enc_index)
+		{
+			enc_index_buf = 0;
+			enc_last_val = 0;
+		}
+		
+	}
+	else
+	{
+		//axis is disconnected
+		pos_cmd_out = 0;
+		pos_fb_out = pos_cmd_in;
+		amp_fault_out = 0;
+		amp_enable_out = 0;
+		float temp = fabs(fmod(pos_cmd_in, 10));
+		//fake a crude index and home for index based homing
+		if (temp >= 0 && temp < 1 && enc_index_buf)
+		{
+			enc_index_buf = 0;
+		}
+		if (temp >= 4 && temp < 6)
+		{
+			home_sw_out = 1;
+		}
+		else
+		{
+			home_sw_out = 0;
+		}
+	}
+
+
+}

@@ -1,0 +1,147 @@
+loadrt frontpanelbuttons2 names=fpbutton
+loadrt frontpanelknobs   names=fpknob
+loadrt lowpass names=fp-lowpass
+
+addf fpbutton servo-thread
+addf fpknob   servo-thread
+addf fp-lowpass servo-thread
+
+############ Setup
+net fp-keycode hm2_7i98.0.7i73.1.2.keycode   =>  fpbutton.scan-code;
+
+############ Buttons
+net fp-mdi-mode    fpbutton.MDI-mode            =>  halui.mode.mdi
+net fp-is-mdi      halui.mode.is-mdi            =>  fpbutton.is-MDI
+net fp-mdi-light   fpbutton.MDI-light           =>  hm2_7i98.0.7i73.1.2.output-02
+
+net fp-auto-mode   fpbutton.Auto-mode           =>  halui.mode.auto
+net fp-is-auto     halui.mode.is-auto           =>  fpbutton.is-Auto
+net fp-auto-light  fpbutton.Auto-light          =>  hm2_7i98.0.7i73.1.2.output-03
+
+net fp-man-mode    fpbutton.Manual-mode         =>  halui.mode.manual
+net manual-mode                                 =>  fpbutton.is-Manual
+net fp-man-light   fpbutton.Manual-light        =>  hm2_7i98.0.7i73.1.2.output-04
+
+net fp-joint-mode  fpbutton.Joint-mode          =>  halui.mode.joint
+net fp-is-joint    halui.mode.is-joint          =>  fpbutton.is-Joint-mode
+
+net fp-teleop-mode fpbutton.Teleop-mode         =>  halui.mode.teleop
+net fp-is-teleop   halui.mode.is-teleop         =>  fpbutton.is-Teleop-mode
+
+net fp-x-homed     joint.0.homed                =>  fpbutton.x-is-homed
+net fp-y-homed     joint.1.homed                =>  fpbutton.y-is-homed
+net fp-z-homed     joint.2.homed                =>  fpbutton.z-is-homed
+net fp-a-homed     joint.3.homed                =>  fpbutton.a-is-homed
+net fp-all-homed                                <=  fpbutton.all-homed
+
+net fp-start       fpbutton.Cycle-Start         =>  halui.program.run
+net fp-prog-idle   halui.program.is-idle        =>  fpbutton.Program-Is-Idle
+net fp-start-light fpbutton.Start-light         =>  hm2_7i98.0.7i73.1.2.output-05
+
+net fp-pause       fpbutton.Pause-Program       =>  halui.program.pause
+net fp-resume      fpbutton.Resume-Program      =>  halui.program.resume
+net fp-is-paused   halui.program.is-paused      =>  fpbutton.Program-Is-Paused
+net fp-pause-light fpbutton.Pause-light         =>  hm2_7i98.0.7i73.1.2.output-06
+
+net fp-step        fpbutton.Step-Program        =>  halui.program.step
+net fp-step-light  fpbutton.Step-light          =>  hm2_7i98.0.7i73.1.2.output-16
+
+net fp-stop        fpbutton.Stop-Program        =>  halui.program.stop
+net fp-is-running  halui.program.is-running     =>  fpbutton.Program-Is-Running
+net fp-stop-light  fpbutton.Stop-light          =>  hm2_7i98.0.7i73.1.2.output-07
+
+net gui-error                                   =>  fpbutton.Message-Waiting
+net music-enable                                =>  fpbutton.Music-Playing
+net gui-delete-msg                              <=  fpbutton.Delete-Message
+
+net fp-aux         halui.program.optional-stop.is-on    =>  fpbutton.Aux-IsOn
+net fp-aux-on      fpbutton.Aux-On              =>  halui.program.optional-stop.on
+net fp-aux-off     fpbutton.Aux-Off             =>  halui.program.optional-stop.off
+net fp-aux-light   fpbutton.Aux-light           =>  hm2_7i98.0.7i73.1.2.output-08
+
+net fp-conveyor    fpbutton.Conveyor
+net fp-conv-light  fpbutton.Conveyor-light      =>  hm2_7i98.0.7i73.1.2.output-09
+
+#net fp-light       fpbutton.Work-Light
+#net fp-light-light fpbutton.Work-Light-light    =>  hm2_7i98.0.7i73.1.2.output-10
+
+net fp-aimed-on    fpbutton.Aimed-On
+net fp-aimed-off   fpbutton.Aimed-Off
+net fp-aimed-is-on fpbutton.Aimed-IsOn
+net fp-aimed-light fpbutton.Aimed-light         => hm2_7i98.0.7i73.1.2.output-10
+
+net fp-flood-on    fpbutton.Flood-On            =>  halui.flood.on
+net fp-flood-off   fpbutton.Flood-Off           =>  halui.flood.off
+net fp-flood-is-on halui.flood.is-on            =>  fpbutton.Flood-IsOn
+net fp-flood-light fpbutton.Flood-light         =>  hm2_7i98.0.7i73.1.2.output-11
+
+net fp-mist-on     fpbutton.Mist-On             =>  halui.mist.on
+net fp-mist-off    fpbutton.Mist-Off            =>  halui.mist.off
+net fp-mist-is-on  halui.mist.is-on             =>  fpbutton.Mist-IsOn
+net fp-mist-light  fpbutton.Mist-light          =>  hm2_7i98.0.7i73.1.2.output-12
+
+net spindle-enable fpbutton.Spindle-IsOn
+net pdnt.spindle.start                          =>  fpbutton.Spindle-Start-Pendant
+net pdnt.spindle.stop                           =>  fpbutton.Spindle-Stop-Pendant
+net fp-spindle-on  fpbutton.Spindle-On          =>  halui.spindle.0.start
+net fp-spin-on-light fpbutton.Spindle-On-light  =>  hm2_7i98.0.7i73.1.2.output-14
+net fp-spindle-off fpbutton.Spindle-Off         =>  halui.spindle.0.stop
+net fp-spin-off-light fpbutton.Spindle-Off-light => hm2_7i98.0.7i73.1.2.output-15
+
+net fp-turtle      fpbutton.Turtle-Jog
+net fp-turtle-light fpbutton.Turtle-light       =>  hm2_7i98.0.7i73.1.2.output-00
+
+net fp-machine-on  fpbutton.Machine-On          =>  halui.machine.on
+net fp-machine-off fpbutton.Machine-Off         =>  halui.machine.off
+net machine-is-on                               =>  fpbutton.Machine-IsOn
+net machine-is-on                               =>  hm2_7i98.0.7i73.1.2.output-13
+
+net fp-jog-xp      fpbutton.Jog-Xplus
+net fp-jog-xn      fpbutton.Jog-Xminus
+net fp-jog-yp      fpbutton.Jog-Yplus
+net fp-jog-yn      fpbutton.Jog-Yminus
+net fp-jog-zp      fpbutton.Jog-Zplus
+net fp-jog-zn      fpbutton.Jog-Zminus
+net fp-jog-ap      fpbutton.Jog-Aplus
+net fp-jog-an      fpbutton.Jog-Aminus
+net fp-jog-light   fpbutton.Jog-light           =>  hm2_7i98.0.7i73.1.2.output-01
+
+############# Analog
+net machine-is-on                               =>  fpknob.machine-is-on
+net fp-is-auto                                  =>  fpknob.is-auto-mode
+
+net fp-turtle                                   =>  fpknob.turtle-mode
+
+net fp-jog-vel-raw hm2_7i98.0.7i73.1.2.analogin0 => fpknob.jog-velocity-in
+net fp-jog-vel     fpknob.jog-velocity-out
+net fp-jog-vel-en  fpknob.jog-analog-enable
+
+net fp-rapid-0     hm2_7i98.0.7i73.1.2.input-01-not   =>  fpknob.rapid-0
+net fp-rapid-1     hm2_7i98.0.7i73.1.2.input-02-not   =>  fpknob.rapid-1
+net fp-rapid-val   fpknob.rapid-out
+net fp-rapid-en    fpknob.rapid-analog-enable
+
+net fp-step-0      hm2_7i98.0.7i73.1.2.input-03-not   =>  fpknob.jog-step-in-0
+net fp-step-1      hm2_7i98.0.7i73.1.2.input-04-not   =>  fpknob.jog-step-in-1
+net fp-step-2      hm2_7i98.0.7i73.1.2.input-05-not   =>  fpknob.jog-step-in-2
+net fp-jog-step-0  fpknob.jog-step-0
+net fp-jog-step-1  fpknob.jog-step-1
+net fp-jog-step-2  fpknob.jog-step-2
+net fp-jog-step-3  fpknob.jog-step-3
+net fp-jog-step-4  fpknob.jog-step-4
+
+net fp-spindle-0   hm2_7i98.0.7i73.1.2.input-06-not  =>  fpknob.spindle-in-0
+net fp-spindle-1   hm2_7i98.0.7i73.1.2.input-07-not  =>  fpknob.spindle-in-1
+net fp-spindle-2   hm2_7i98.0.7i73.1.2.input-08-not  =>  fpknob.spindle-in-2
+net fp-spindle-3   hm2_7i98.0.7i73.1.2.input-09-not  =>  fpknob.spindle-in-3
+net fp-spindle-over  fpknob.spindle-out
+net fp-spindle-en    fpknob.spindle-analog-enable
+
+net fp-feed-0      hm2_7i98.0.7i73.1.2.input-10-not  =>  fpknob.feed-in-0
+net fp-feed-1      hm2_7i98.0.7i73.1.2.input-11-not  =>  fpknob.feed-in-1
+net fp-feed-2      hm2_7i98.0.7i73.1.2.input-12-not  =>  fpknob.feed-in-2
+net fp-feed-3      hm2_7i98.0.7i73.1.2.input-13-not  =>  fpknob.feed-in-3
+net fp-feed-over   fpknob.feed-out
+net fp-feed-en     fpknob.feed-analog-enable
+
+

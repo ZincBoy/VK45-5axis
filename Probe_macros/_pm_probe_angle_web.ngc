@@ -1,0 +1,83 @@
+;angle web or boss measurment
+o<_pm_probe_angle_web> sub
+
+    #<a> = #1
+    #<d> = #2
+    #<r> = #3
+	#<z> = #4
+    #<zdown> = #5
+    #<search_dist> = #6
+    
+    o10 if [#<_pmm_error_status>]
+        o<_pm_probe_angle_web> return [-1]
+    o10 endif
+
+    #<startx> = #<_x>
+    #<starty> = #<_y>
+    #<startz> = #<_z>
+
+	#<targetdist> = #<r>
+	o50 if [#<zdown> and [#<r> ge 0]]
+        #<searchdir> = -1
+		#<startdist> = [#<d> / 2 + #<r>]
+	o50 else
+        #<searchdir> = 1
+		#<startdist> = [#<d> / 2  - abs[#<r>]]
+		o55 if [#<startdist> lt 0]
+			#<targetdist> = [#<d> / 2]
+			#<startdist> = 0
+		o55 endif
+	o50 endif
+
+    ; starting points for probing
+    #<sx1>   = [#<startx> + cos[#<a> + 90] * #<startdist>]
+    #<sy1>   = [#<starty> + sin[#<a> + 90] * #<startdist>]
+    #<sx2>   = [#<startx> + cos[#<a> - 90] * #<startdist>]
+    #<sy2>   = [#<starty> + sin[#<a> - 90] * #<startdist>]
+
+    G90 G1 X[#<sx1>] Y[#<sy1>] F[#<_pmm_rapid_feedrate>]
+    o100 if [#<zdown>]
+        G1 Z[#<z>]
+    o100 endif
+
+    ; probe first normal direction
+    o<_pm_probe> call [#<search_dist> + abs[#<r>]] [#<_pmm_backoff_distance>] [#<a> + 90 * #<searchdir>] [0] [0] [#<targetdist>]
+    o105 if [#<_pmm_error_status>]
+        o<_pm_probe_angle_web> return [-1]
+    o105 endif
+
+    #<x1> = #[#<_pma_xpos>]
+    #<y1> = #[#<_pma_ypos>]
+
+    o110 if [#<zdown>]
+        G90 G1 Z[#<startz>]
+    o110 endif
+
+    G90 G1 X[#<startx>] Y[#<starty>] F[#<_pmm_rapid_feedrate>]
+
+    G1 X[#<sx2>] Y[#<sy2>] F[#<_pmm_rapid_feedrate>]
+    o120 if [#<zdown>]
+        G1 Z[#<z>]
+    o120 endif
+
+    ; probe second normal direction
+    o<_pm_probe> call [#<search_dist> + abs[#<r>]] [#<_pmm_backoff_distance>] [#<a> - 90 * #<searchdir>] [0] [0] [#<targetdist>]
+    o125 if [#<_pmm_error_status>]
+        o<_pm_probe_angle_web> return [-1]
+    o125 endif
+
+    #<x2> = #[#<_pma_xpos>]
+    #<y2> = #[#<_pma_ypos>]
+
+    o130 if [#<zdown>]
+        G90 G1 Z[#<startz>]
+    o130 endif
+
+    G90 G1 X[#<startx>] Y[#<starty>] F[#<_pmm_rapid_feedrate>]
+
+    #[#<_pma_size>] = [[[#<x1> - #<x2>] ** 2 + [#<y1> - #<y2>] ** 2] ** 0.5]
+    #[#<_pma_xpos>] = [[#<x1> + #<x2>] / 2]
+    #[#<_pma_ypos>] = [[#<y1> + #<y2>] / 2]
+
+o<_pm_probe_angle_web> endsub [0]
+M2

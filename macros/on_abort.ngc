@@ -1,0 +1,68 @@
+%
+o<on_abort> sub
+
+    ; Things that always happen go here
+    M5
+    M9
+
+    #<pm_restore> = 0
+    o200 if [EXISTS[#<_pmm_modal_store>]]
+        o210 if [#<_pmm_modal_store>]
+            #<pm_restore> = 1
+        o210 endif
+    o200 endif
+    
+    o220 if [#<pm_restore>]
+        ; probe macro restore
+        (PRINT, *************PM MODAL RESTORE)
+
+        ;M66 P0 L0
+        ;G91 G0 X0
+        o100 if [#<_pmm_modal_abs>]
+            G91
+        o100 endif
+        o105 if [#<_pmm_modal_incremental>]
+            G91
+        o105 endif
+        o110 if [#<_pmm_modal_invtime>]
+            G93
+        o110 endif
+        o120 if [#<_pmm_modal_upm>]
+            G94
+        o120 endif
+        o130 if [#<_pmm_modal_upr>]
+            G95
+        o130 endif
+        o140 if [#<_pmm_modal_arcdist>]
+            G90.1
+        o140 else
+            G91.1
+        o140 endif
+
+        o150 if [EXISTS[#<_pmm_modal_feed>]]
+            F#<_pmm_modal_feed>
+        o150 endif
+        ; this is done here as this function is called before an abort
+        ;o160 if [#<_ini[PROBE_MACRO]STICKY_AUX>]
+        ;o160 else
+            o<_pm_auxval_clear> call
+        ;o160 endif
+
+        #<_pmm_modal_store> = 0
+
+    o220 else
+        ; normal behavior on abort
+        (PRINT, *************ON ABORT RESTORE)
+        G17
+        G20 F20
+        G90
+        G91.1
+        G40
+        G43
+        G80
+        G94
+        G97
+    o220 endif
+
+o<on_abort> endsub
+%

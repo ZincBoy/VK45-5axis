@@ -1,0 +1,553 @@
+component frontpanelbuttons "converts the scan code data to signals";
+pin in u32 scan-code;
+pin out u32 key-press;
+
+// system state controls
+pin out bit MDI-mode;
+pin in  bit is-MDI;
+pin out bit MDI-light;
+pin out bit Auto-mode;
+pin in  bit is-Auto;
+pin out bit Auto-light;
+pin out bit Manual-mode;
+pin in  bit is-Manual;
+pin out bit Joint-mode;
+pin in  bit is-Joint-mode;
+pin out bit Teleop-mode;
+pin in  bit is-Teleop-mode;
+
+// joint homing
+pin in  bit x-is-homed;
+pin in  bit y-is-homed;
+pin in  bit z-is-homed;
+pin in  bit a-is-homed;
+pin out bit all-homed;
+
+pin out bit Manual-light;
+pin out bit Cycle-Start;
+pin out bit Start-light;
+pin in  bit Program-Is-Idle;
+pin in  bit Program-Is-Paused;
+pin in  bit Program-Is-Running;
+pin out bit Pause-Program;
+pin out bit Pause-light;
+pin out bit Resume-Program;
+pin out bit Step-Program;
+pin out bit Step-light;
+pin out bit Stop-Program;
+pin out bit Stop-light;
+pin out bit Delete-Message;
+pin in  bit Message-Waiting;
+pin out bit Aux-On;
+pin out bit Aux-Off;
+pin in  bit Aux-IsOn;
+pin out bit Aux-light;
+pin out bit Conveyor;
+pin out bit Conveyor-light;
+pin out bit Work-Light;
+pin out bit Work-Light-light;
+pin out bit Flood-On;
+pin out bit Flood-Off;
+pin in  bit Flood-IsOn;
+pin out bit Flood-light;
+pin out bit Mist-On;
+pin out bit Mist-Off;
+pin in  bit Mist-IsOn;
+pin out bit Mist-light;
+pin in  bit Spindle-Start-Pendant;
+pin out bit Spindle-On;
+pin out bit Spindle-On-light;
+pin in  bit Spindle-IsOn;
+pin in  bit Spindle-Stop-Pendant;
+pin out bit Spindle-Off;
+pin out bit Spindle-Off-light;
+pin out bit Turtle-Jog;
+pin out bit Turtle-light;
+pin out bit Machine-On;
+pin out bit Machine-Off;
+pin in  bit Machine-IsOn;
+pin out bit Jog-light;
+pin out bit Jog-Xplus;
+pin out bit Jog-Xminus;
+pin out bit Jog-Yplus;
+pin out bit Jog-Yminus;
+pin out bit Jog-Zplus;
+pin out bit Jog-Zminus;
+pin out bit Jog-Aplus;
+pin out bit Jog-Aminus;
+
+param rw u32 debug-enable = 1;
+
+variable int powerstate = 0;
+variable int spindlestopval = 0;
+variable int spindlestartval = 0;
+
+author "alex lait";
+license "GPL";
+function _;
+
+;;
+
+FUNCTION(_){
+
+     int powerup = 0;
+     int powerdown = 0;
+     
+     //homing logic
+     if (x_is_homed && y_is_homed && z_is_homed && a_is_homed)
+          all_homed = 1;
+     else
+          all_homed = 0;
+     
+     //oneshot signals on change in machine power. Used for init
+     if (powerstate == 0 && Machine_IsOn == 1) {
+          powerstate = 1;
+          powerup = 1;
+          Work_Light = 1;
+     } else if (powerstate == 1 && Machine_IsOn == 0) {
+          powerstate = 0;
+          powerdown = 1;
+          Work_Light = 0;
+     }
+     
+     
+	if (is_MDI && Machine_IsOn)
+		MDI_light = 1;
+	else
+		MDI_light = 0;
+	
+	if (is_Auto && Machine_IsOn)
+		Auto_light = 1;
+	else
+		Auto_light = 0;
+	
+	if (is_Manual && Machine_IsOn)
+		Manual_light = 1;
+	else
+		Manual_light = 0;
+	
+	if (Program_Is_Idle && Machine_IsOn && is_Auto)
+		Start_light = 1;
+	else
+		Start_light = 0;
+	
+	if (Program_Is_Paused)
+		Pause_light = 1;
+	else
+		Pause_light = 0;
+	
+	if (Step_Program && is_Auto)
+		Step_light = 1;
+	else
+		Step_light = 0;
+	
+	if (Program_Is_Running || Program_Is_Paused || Message_Waiting)
+		Stop_light = 1;
+	else
+		Stop_light = 0;
+	
+	if (!Spindle_IsOn && is_Manual && Machine_IsOn)
+ 		Spindle_On_light = 1;
+	else
+		Spindle_On_light = 0;
+	
+	if (Spindle_IsOn && is_Manual)
+		Spindle_Off_light = 1;
+	else
+		Spindle_Off_light = 0;
+	
+	if (Aux_IsOn && Machine_IsOn)
+		Aux_light = 1;
+	else
+		Aux_light = 0;
+	
+	if (Conveyor && Machine_IsOn)
+		Conveyor_light = 1;
+	else
+		Conveyor_light = 0;
+	
+	if (Work_Light && Machine_IsOn)
+		Work_Light_light = 1;
+	else
+		Work_Light_light = 0;
+	
+	if (!Machine_IsOn)
+	{
+		Work_Light = 0;
+		Conveyor = 0;
+	}
+	
+	if (Flood_IsOn && Machine_IsOn)
+		Flood_light = 1;
+	else
+		Flood_light = 0;
+	
+	if (Mist_IsOn && Machine_IsOn)
+		Mist_light = 1;
+	else
+		Mist_light = 0;
+	
+	if (Turtle_Jog && Machine_IsOn)
+		Turtle_light = 1;
+	else
+		Turtle_light = 0;
+	
+	if (Machine_IsOn && is_Manual)
+		Jog_light = 1;
+	else
+		Jog_light = 0;
+	
+	int keydown = 0;
+	int keyup = 0;
+	int allup = 0;
+
+	if (debug_enable)
+		rtapi_set_msg_level(5);
+	
+	if ((scan_code & 0xC0) == 0xC0)
+	{
+		//is a key down event
+		rtapi_print_msg(RTAPI_MSG_INFO, "7i73 Key Down: 0x%X\n", scan_code);
+		key_press = scan_code & 0x3F;
+		keydown = 1;
+	}
+	else if ((scan_code & 0x80) == 0x80)
+	{
+		//is a key up event
+		rtapi_print_msg(RTAPI_MSG_INFO, "7i73 Key Up: 0x%X\n", scan_code);
+		key_press = 0;
+		keyup = 1;
+	}
+	else if (scan_code == 0)
+	{
+		rtapi_print_msg(RTAPI_MSG_INFO, "7i73 Key All Up: 0x%X\n", scan_code);
+		//all keys are up
+		allup = 1;
+	}
+	else if (scan_code != 0x40)
+	{
+		rtapi_print_msg(RTAPI_MSG_WARN, "7i73 Key Unknown: 0x%X\n", scan_code);
+	}
+
+	int keycode = scan_code & 0x3F;
+
+	if (!(keydown || keyup))
+		keycode = 0xFF;
+	
+	//disable buttons until the machine is on.  Need to allow the power button though and msg clear
+	if (!Machine_IsOn && !((keycode == 0x0F) || (keycode == 0x06)))
+		keycode = 0xFF;
+	
+	switch (keycode)
+	{
+		case 0x00:  //manual mode
+			if (keydown)
+			{
+				if (Program_Is_Idle)
+				{
+					Manual_mode = 1;
+					if (all_homed)
+						Teleop_mode = 1;
+					else
+						Joint_mode = 1;
+				}
+			}
+			else
+			{
+				Manual_mode = 0;
+				Teleop_mode = 0;
+				Joint_mode = 0;
+			}
+			break;
+			
+		case 0x01:  //auto mode
+			if (keydown)
+				if (all_homed)
+					Auto_mode = 1;
+			else
+				Auto_mode = 0;
+			break;
+			
+		case 0x02:  //mdi mode
+			if (keydown)
+			{
+				if (Program_Is_Idle && all_homed)
+					MDI_mode = 1;
+			}
+			else
+				MDI_mode = 0;
+			break;
+			
+		case 0x03:  //cycle start
+			if (keydown)
+			{
+				if (is_Auto)
+					Cycle_Start = 1;
+			}
+			else
+				Cycle_Start = 0;
+			break;
+			
+		case 0x04:  //pause button
+			if (is_Auto)
+			{
+				if (keydown)
+				{
+					if (Program_Is_Paused)
+						Resume_Program = 1;
+					else
+						Pause_Program = 1;
+				}
+				else
+				{
+					Pause_Program = 0;
+					Resume_Program = 0;
+				}
+			}
+			break;
+			
+		case 0x05:  //program step button
+			if (keydown)
+			{
+				if (is_Auto)
+					Step_Program = 1;
+			}
+			else
+				Step_Program = 0;
+			break;
+			
+		case 0x06:  //stop program and clear gui message when not running
+			if (keydown)
+			{
+				if (Program_Is_Running || Program_Is_Paused)
+					Stop_Program = 1;
+				else if (Message_Waiting)
+					Delete_Message = 1;
+			}
+			else
+			{
+				Stop_Program = 0;
+				Delete_Message = 0;
+			}
+			break;
+			
+		case 0x07:  // aux button, used for optional stop button right now
+			if (keydown)
+			{
+			     if (Aux_IsOn)
+			          Aux_Off = 1;
+			     else
+			          Aux_On = 1;
+			}
+			else
+			{
+			     Aux_On = 0;
+			     Aux_Off = 0;
+			}
+			break;
+			
+		case 0x08:  // chip conveyor button
+			if (keydown)
+			{
+				if (Conveyor)
+					Conveyor = 0;
+				else
+					Conveyor = 1;
+			}
+			break;
+			
+		case 0x09:  // work light button
+			if (keydown)
+			{
+				if (Work_Light)
+					Work_Light = 0;
+				else
+					Work_Light = 1;
+			}
+			break;
+			
+		case 0x0A:  // flood coolant button
+			if (keydown)
+			{
+				if (Flood_IsOn)
+					Flood_Off = 1;
+				else
+					Flood_On = 1;
+			}
+			else
+			{
+				Flood_Off = 0;
+				Flood_On = 0;
+			}
+			break;
+			
+		case 0x0B:  // mist coolant button
+			if (keydown)
+			{
+				if (Mist_IsOn)
+					Mist_Off = 1;
+				else
+					Mist_On = 1;
+			}
+			else
+			{
+				Mist_Off = 0;
+				Mist_On = 0;
+			}
+			break;
+			
+		case 0x0C:  // spindle start button
+			if (keydown)
+			{
+				if (is_Manual)
+				{
+					spindlestartval = 1;
+					//Spindle_On = 1;
+				}
+			}
+			else
+			{
+				spindlestartval = 0;
+				//Spindle_On = 0;
+			}
+			break;
+			
+		case 0x0D:  // spindle stop button
+			if (keydown)
+			{
+				if (is_Manual)
+				{
+					spindlestopval = 1;
+					//Spindle_Off = 1;
+				}
+			}
+			else
+			{
+				spindlestopval = 0;
+				//Spindle_Off = 0;
+			}
+			break;
+			
+		case 0x0E:  // turtle jog button
+			if (keydown)
+			{
+				if (Turtle_Jog)
+					Turtle_Jog = 0;
+				else
+					Turtle_Jog = 1;
+			}
+			break;
+			
+		case 0x0F:  // machine on/off button
+			if (keydown)
+			{
+				if (Machine_IsOn)
+					Machine_Off = 1;
+				else
+					Machine_On = 1;
+			}
+			else
+			{
+				Machine_Off = 0;
+				Machine_On = 0;
+			}
+			break;
+			
+		case 0x10:  // jog x+
+			if (keydown)
+				Jog_Xplus = 1;
+			else
+				Jog_Xplus = 0;
+			break;
+			
+		case 0x11:  // jog x-
+			if (keydown)
+				Jog_Xminus = 1;
+			else
+				Jog_Xminus = 0;
+			break;
+			
+		case 0x12:  // jog y+
+			if (keydown)
+				Jog_Yplus = 1;
+			else
+				Jog_Yplus = 0;
+			break;
+			
+		case 0x13:  // jog y-
+			if (keydown)
+				Jog_Yminus = 1;
+			else
+				Jog_Yminus = 0;
+			break;
+			
+		case 0x14:  // jog z+
+			if (keydown)
+				Jog_Zplus = 1;
+			else
+				Jog_Zplus = 0;
+			break;
+			
+		case 0x15:  // jog z-
+			if (keydown)
+				Jog_Zminus = 1;
+			else
+				Jog_Zminus = 0;
+			break;
+			
+		case 0x16:  // jog a+
+			if (keydown)
+				Jog_Aplus = 1;
+			else
+				Jog_Aplus = 0;
+			break;
+			
+		case 0x17:  // jog a-
+			if (keydown)
+				Jog_Aminus = 1;
+			else
+				Jog_Aminus = 0;
+			break;
+		default:
+			keycode = 0;
+	}
+	
+	// safety in case the key up is missed, should not do anything in most cases
+	if (allup)
+	{
+		Manual_mode = 0;
+		Auto_mode = 0;
+		MDI_mode = 0;
+		Cycle_Start = 0;
+		Pause_Program = 0;
+		Resume_Program = 0;
+		Step_Program = 0;
+		Stop_Program = 0;
+		Delete_Message = 0;
+		Aux_On = 0;
+		Aux_Off = 0;
+		Flood_Off = 0;
+		Flood_On = 0;
+		Mist_Off = 0;
+		Mist_On = 0;
+		//Spindle_On = 0;
+		//Spindle_Off = 0;
+		spindlestartval = 0;
+		spindlestopval = 0;
+		Machine_Off = 0;
+		Machine_On = 0;
+		Jog_Xplus = 0;
+		Jog_Xminus = 0;
+		Jog_Yplus = 0;
+		Jog_Yminus = 0;
+		Jog_Zplus = 0;
+		Jog_Zminus = 0;
+		Jog_Aplus = 0;
+		Jog_Aminus = 0;
+	}
+	
+	//or in external controls
+	Spindle_On  = spindlestartval | Spindle_Start_Pendant;
+	Spindle_Off = spindlestopval  | Spindle_Stop_Pendant;
+	
+}

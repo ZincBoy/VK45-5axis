@@ -1,0 +1,51 @@
+;M9 remap
+
+o<m29> sub
+
+     #<aimed_pin> = #<_ini[COOLANT]AIMED_PIN>
+     #<wash_pin> = #<_ini[COOLANT]WASH_PIN>
+     #<air_pin> = #<_ini[COOLANT]AIR_PIN>
+     #<flag> = 0
+
+    o100 if [exists[#<p>]]
+        o110 if [#<p> eq 0]
+            ; mist
+            #<flag> = #<_flood>
+            M9
+            o120 if [#<flag>]
+                M8
+            o120 endif
+        o110 elseif [#<p> eq 1]
+            ; air
+            M65 P#<air_pin>
+        o110 elseif [#<p> eq 2]
+            ; flood
+            #<flag> = #<_mist>
+            M9
+            o130 if [#<flag>]
+                M7
+            o130 endif
+        o110 elseif [#<p> eq 3]
+            ; aimed
+            M65 P#<aimed_pin>
+        o110 elseif [#<p> eq 4]
+            ; washdown
+            M65 P#<wash_pin>
+        o110 else
+            M65 P#<aimed_pin>
+            M65 P#<wash_pin>
+            M65 P#<air_pin>
+            ;turn off other coolant as well.
+            M9 
+        o110 endif
+    o100 else
+        M65 P#<aimed_pin>
+        M65 P#<wash_pin>
+        M65 P#<air_pin>
+        ;turn off other coolant as well.
+        M9 
+    o100 endif
+
+
+o<m29> endsub [0]
+M2

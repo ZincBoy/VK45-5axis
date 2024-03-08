@@ -1,0 +1,108 @@
+o<9809> sub
+
+    ;single axis touch off
+	;  implemented
+	;  |  NOT RENISHAW STANDARD
+	;  |  |
+	;  X     axis direction and distance
+	;  Y     axis direction and distance
+	;  Z     axis direction and distance
+	;  D     value to set axis to after probe
+	;  q  q  probe overtravel (past target point)
+	;  |  |
+	;  |  | Values set with extended g65 p9000 pre call
+	;  e  e  Experience value - tool offset containing correction factor
+	;     w  print the output data NOT IMPLEMENTED
+
+
+	; this function only works with relative motion  
+	G91
+
+    #<foundx> = 0
+    #<foundy> = 0
+    #<foundz> = 0
+    #<x> = #<_pv_x>
+    #<y> = #<_pv_y>
+    #<z> = #<_pv_z>
+    o100 if [#<_pv_got_x>]
+        #<foundx> = 1
+		o105 if [#<_absolute>]
+			#<xvec> = [#<x> - #<_x>]
+			#<xtarg> = #<x>
+		o105 else
+			#<xvec> = #<x>
+			#<xtarg> = [#<x> + #<_x>]
+		o105 endif
+    o100 else
+        #<xvec> = 0
+        #<x> = 0
+		#<xtarg> = #<_x>
+    o100 endif
+    o110 if [#<_pv_got_y>]
+        #<foundy> = 1
+		o115 if [#<_absolute>]
+			#<yvec> = [#<y> - #<_y>]
+			#<ytarg> = #<y>
+		o115 else
+			#<yvec> = #<y>
+			#<ytarg> = [#<y> + #<_y>]
+		o115 endif
+    o110 else
+        #<yvec> = 0
+        #<y> = 0
+		#<ytarg> = #<_y>
+    o110 endif
+    o120 if [#<_pv_got_z>]
+        #<foundz> = 1
+		o125 if [#<_absolute>]
+			#<zvec> = [#<z> - #<_z>]
+			#<ztarg> = #<z>
+		o125 else
+			#<zvec> = #<z>
+			#<ztarg> = [#<z> + #<_z>]
+		o125 endif
+        o127 if [#<zvec> GE 0]
+            (abort, Z probe can go in negative direction only in G65 P9809)
+        o127 endif
+    o120 else
+        #<zvec> = 0
+        #<z> = 0
+		#<ztarg> = #<_z>
+    o120 endif
+	
+	o130 if [#<_pv_got_dimension> EQ 0]
+		(abort, D word required in G65 P9809)
+	o130 endif
+
+    
+    o200 if [[#<foundx> + #<foundy> + #<foundz>] EQ 0]
+        (abort, G65 P9809 requires at least one axis parameter of X,Y,Z)
+    o200 elseif [[#<foundx> + #<foundy> + #<foundz>] GT 1]
+        (abort, G65 P9809 can only have one axis active at a time)
+    o200 elseif [#<foundz>]
+        #<xy_angle> = 0
+        #<z_angle> = 90
+        #<length> = [-#<zvec>]
+    o200 endif
+    
+    #<sx> = #<_x>
+    #<sy> = #<_y>
+    #<sz> = #<_z>
+    
+    #<int_search> = [#<length> + #<_pv_search_dist>]
+    
+    ;only xy probe cal required
+    o<_pm_cal_check> call [0]
+    
+    o<_pm_check_probe_state> call [0]
+    
+    o<_pm_probe> call [#<int_search>] [#<_pmm_backoff_distance>] [#<xy_angle>] [#<z_angle>] [0] [#<length>]
+	
+	#<xcorr> = [[#[#<_pma_xpos>] + #<_pv_dimension>] * #<foundx>]
+	#<ycorr> = [[#[#<_pma_ypos>] + #<_pv_dimension>] * #<foundy>]
+	#<zcorr> = [[#[#<_pma_zpos>] + #<_pv_dimension>] * #<foundz>]
+    
+    o<_pm_set_workoffset> call [1] [#<_pv_offset_num>] [#<foundx>] [#<foundy>] [#<foundz>] [#[#<_pma_xerr>]] [#[#<_pma_yerr>]] [#[#<_pma_zerr>]]
+    
+o<9809> endsub
+M2

@@ -1,0 +1,69 @@
+
+o<_pm_check_error> sub
+
+    #<pval> = #1
+
+	o05 if [#<_pmm_error_status>]
+		o<_pm_modal_restore> call
+		;queue breaker
+		M66 P0 L0
+	o05 endif
+
+    o10 IF [#<_pmm_error_status> EQ 0]
+        o<_pm_check_error> return [0]
+
+    o10 ELSEIF [#<_pmm_error_status> EQ -100]
+        (abort, Probe not on when probe function called, G65 P#<pval>)
+    o10 ELSEIF [#<_pmm_error_status> EQ -101]
+        (abort, Probe tripped on non-probe move, G65 P#<pval>)
+    o10 ELSEIF [#<_pmm_error_status> EQ -102]
+        (abort, Probe search distance less than or equal to 0, G65 P#<pval>)
+    o10 ELSEIF [#<_pmm_error_status> EQ -103]
+        (abort, Probe search z angle not between 0 and 90, G65 P#<pval>)
+    o10 ELSEIF [#<_pmm_error_status> EQ -104]
+        (abort, Probe search velocity less than or equal to 0, G65 P#<pval>)
+    o10 ELSEIF [#<_pmm_error_status> EQ -105]
+        (abort, Probe fine search velocity less than or equal to 0, G65 P#<pval>)
+    o10 ELSEIF [#<_pmm_error_status> EQ -106]
+        (abort, Probe settling time less than 0, G65 P#<pval>)
+    o10 ELSEIF [#<_pmm_error_status> EQ -107]
+        (abort, Probe hardware error, G65 P#<pval>)
+    o10 ELSEIF [#<_pmm_error_status> EQ -108]
+        (abort, Probe low battery, G65 P#<pval>)
+    o10 ELSEIF [#<_pmm_error_status> EQ -109]
+        (abort, Probe tripped before probe move, G65 P#<pval>)
+    o10 ELSEIF [#<_pmm_error_status> EQ -110]
+        (abort, Probe failed to make contact during probe move, G65 P#<pval>)
+    o10 ELSEIF [#<_pmm_error_status> EQ -111]
+        (abort, Target z depth must be at least probe radius below the current position, G65 P#<pval>)
+    o10 ELSEIF [#<_pmm_error_status> EQ -112]
+        (abort, X estimate less than 0, G65 P#<pval>)
+    o10 ELSEIF [#<_pmm_error_status> EQ -113]
+        (abort, Y estimate less than 0, G65 P#<pval>)
+    o10 ELSEIF [#<_pmm_error_status> EQ -114]
+        (abort, Direction not 1 or -1, G65 P#<pval>)
+    o10 ELSEIF [#<_pmm_error_status> EQ -115]
+        (abort, R value of 0 with direction of 1, G65 P#<pval>)
+    o10 ELSEIF [#<_pmm_error_status> EQ -117]
+        (abort, Tolerance value not met on probe cycle, with error flag set, G65 P#<pval>)
+    o10 ELSEIF [#<_pmm_error_status> EQ -120]
+        (abort, E word must be greater than 0 in G65.1 pre call, G65 P#<pval>)
+    o10 ELSEIF [#<_pmm_error_status> EQ -121]
+        (abort, I word must be greater than 0 in G65.1 pre call, G65 P#<pval>)
+    o10 ELSEIF [#<_pmm_error_status> EQ -122]
+        (abort, J word must be greater than 0 in G65.1 pre call, G65 P#<pval>)
+    o10 ELSEIF [#<_pmm_error_status> EQ -123]
+        (abort, K word must be greater than 0 in G65.1 pre call, G65 P#<pval>)
+    o10 ELSEIF [#<_pmm_error_status> EQ -124]
+        (abort, Tool offset correction exceeded upper tolerance, G65 P#<pval>)
+    o10 ELSEIF [#<_pmm_error_status> EQ -130]
+        (abort, Probe calibration data sanity check failed, G65 P#<pval>)
+	o10 elseif [#<_pmm_error_status> eq -140]
+		(abort, Zero distance between corner and probe position in G65, P#<pval>)
+
+    o10 ELSE
+        (abort, Unknown error code = #<_pmm_error_status>, G65 P#<pval>)
+    o10 ENDIF
+
+o<_pm_check_error> endsub [1]
+M2

@@ -1,0 +1,107 @@
+o<9810> sub
+
+    ; protected move, uses xyzafk inputs
+    ;  G90 or G91 are respected and will be used as set
+	;  implemented
+	;  |  renishaw standard
+	;  |  |
+	;  x  x  axis value
+	;  y  y  axis value
+	;  z  z  axis value
+	;  a     axis value
+	;  f  f  feed rate
+	;  k  m  mode setting, k=1, don't alarm on contact, k=2, don't alarm and move back to start point
+	;     c1 position using stylus ball center, not implemented  
+	;  
+    o100 if [#<_pv_got_d> OR #<_pv_got_e> OR #<_pv_got_i> OR #<_pv_got_j> OR #<_pv_got_q> OR #<_pv_got_r>]
+       (abort, Invalid word in G65 P9810)
+    o100 endif
+    
+    o200 if [#<_absolute>]
+        #<lx> = #<_x>
+        #<ly> = #<_y>
+        #<lz> = #<_z>
+        #<la> = #<_a>
+	o200 else
+        #<lx> = 0
+        #<ly> = 0
+        #<lz> = 0
+        #<la> = 0
+    o200 endif
+	#<lf> = #<_feed>
+	
+	#<sx> = #<_x>
+	#<sy> = #<_y>
+	#<sz> = #<_z>
+	#<sa> = #<_a>
+
+    #<got_axis> = 0
+    o210 if [#<_pv_got_x>]
+        #<got_axis> = 1
+        #<lx> = #<_pv_x>
+    o210 endif
+    o220 if [#<_pv_got_y>]
+        #<got_axis> = [#<got_axis> + 2]
+        #<ly> = #<_pv_y>
+    o220 endif
+    o230 if [#<_pv_got_z>]
+        #<got_axis> = [#<got_axis> + 4]
+        #<lz> = #<_pv_z>
+    o230 endif
+    o240 if [#<_pv_got_a>]
+        #<got_axis> = [#<got_axis> + 8]
+        #<la> = #<_pv_a>
+    o240 endif
+    o250 if [#<_pv_got_f>]
+        o255 if [#<_pv_f> LE 0]
+            (abort, F word can't be zero in G65 P9810)
+        o255 endif
+        ; this is redundant as the parser will already have set the F value
+        #<lf> =  #<_pv_f>
+    o250 endif
+    o260 if [#<_pv_got_k>]
+		#<k> = #<_pv_k>
+    o260 else
+        #<k> = 0
+    o260 endif
+    
+    ; checks to see if the probe is on
+    o<_pm_check_probe_state> call [0]
+	o<_pm_check_error> call [#1]
+	
+    #[#<_pma_tolerance_flag>] = 0
+    o300 if [#<got_axis> EQ 0]
+        (abort, G65 P9810 Protected move requires at least one axis word)
+    o300 elseif [#<got_axis> LT 8]
+        G38.3 X[#<lx>] Y[#<ly>] Z[#<lz>] F[#<lf>]
+    o300 else
+        G38.3 X[#<lx>] Y[#<ly>] Z[#<lz>] A[#<la>] F[#<lf>]
+    o300 endif
+    #<_pmm_modal_feed> = #<lf>
+
+    
+    o350 if [[#5070 EQ 1] AND [#<_pmm_error_status> EQ 0]]
+        ; tripped the probe, stop
+        ; set the error flag to probe triggered
+        #[#<_pma_tolerance_flag>] = 7
+		o360 if [#<k> eq 1]
+			(print, flag, no alarm)
+			;don't set alarm but don't move off obstruction
+		o360 elseif [#<k> eq 2]
+			(print, flag, move away)
+			; move away from obstruction
+			o370 if [#<got_axis> lt 8]
+				G90 G1 X[#<sx>] Y[#<sy>] Z[#<sz>]
+			o370 else
+				G90 G1 X[#<sx>] Y[#<sy>] Z[#<sz>] A[#<sa>]
+			o370 endif
+		o360 else
+			(print, error)
+            #[#<_pma_probe_error>] = 7
+            #<_pmm_error_status> = -101
+        o360 endif
+    o350 endif
+
+
+o<9810> endsub [0]
+M2

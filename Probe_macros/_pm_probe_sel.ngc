@@ -1,0 +1,21 @@
+; select the active probe
+o<_pm_probe_sel> sub
+
+    #<probesel> = #1 
+    #<sel_pin> = #<_ini[PROBE_MACRO]PROBE_SEL_PIN>
+    #<delay_time> = #<_ini[PROBE_MACRO]PROBE_ON_TIME>
+
+    o100 if [#<_ini[PROBE_MACRO]USE_TOOLPROBE_SEL>]
+        o101 if [#<_pmm_probe_sel> NE #<probesel>]
+            M65 P#<sel_pin>
+            (print, clear sel)
+            o102 if [#<probesel> GT 0]
+                (print, set sel)
+                M64 P#<sel_pin>
+            o102 endif
+            G4 P#<delay_time>
+        o101 endif
+        #<_pmm_probe_sel> = #<probesel>
+    o100 endif
+
+o<_pm_probe_sel> endsub

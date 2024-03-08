@@ -1,0 +1,49 @@
+; check and store modal status
+o<_pm_modal_check> sub
+
+
+    o100 if [#<_ccomp> NE 400]
+        (abort, Cutter compensation can't be on for G65 call)
+    o100 endif
+    o101 if [#<_plane> NE 170]
+        (abort, Only XY plane is supported for G65 call)
+    o101 endif
+	
+	; deal with metric/imperial mode
+	o102 if [#<_metric> AND #<_ini[PROBE_MACRO]LINEAR_UNITS_INCH>]
+		#<_pmm_scale> = [ 1 / 25.4 ]
+		#<_pmm_modal_inch> = 0
+		G20
+	o102 elseif [#<_imperial> AND [#<_ini[PROBE_MACRO]LINEAR_UNITS_INCH> EQ 0]]
+		#<_pmm_scale> = 25.4
+		#<_pmm_modal_inch> = 1
+		G21
+	o102 else
+		#<_pmm_scale> = 1
+		#<_pmm_modal_inch> = #<_imperial>
+	o102 endif
+
+    ; modal storage vars
+    #<_pmm_modal_abs> = #<_absolute>
+    #<_pmm_modal_incremental> = #<_incremental>
+    #<_pmm_modal_invtime> = #<_inverse_time>
+    #<_pmm_modal_upm> = #<_units_per_minute>
+    #<_pmm_modal_upr> = #<_units_per_rev>
+    #<_pmm_modal_arcdist> = #<_ijk_absolute_mode>
+	#<_pmm_modal_coord_system> = #<_coord_system>
+	
+    o110 if [EXISTS[#<_feed>]]
+        #<_pmm_modal_feed> = #<_feed>
+    o110 endif
+
+    ; initalize the tool table read memory locations
+    G10.1 I1 P0
+    
+    ; set required modes
+    ; relative ijk values
+    G91.1
+    
+    #<_pmm_modal_store> = 1
+
+o<_pm_modal_check> endsub
+M2

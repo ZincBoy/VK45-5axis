@@ -1,0 +1,245 @@
+; Helper macro for containing functionality needed to
+; safely perform a G38.3 move.
+
+o<_pm_probe> sub
+
+    ; Parameters for this macro
+    #<search_distance>  = #1
+    #<latch_distance>   = #2
+    ; 0 = +X, 90 = +Y, 180 = -X, 270 = -Y
+    #<search_xy_angle>  = #3
+    ; 0 = XY, 90 = Z
+    #<search_z_angle>   = #4
+    ; 0 = cal output, 1 = no cal
+    #<no_cal>           = #5
+	;used for simulation mode
+	#<target_distance>  = #6
+    
+    #<searchvel>        = #[#<_pma_fast_feedrate>]
+    #<probevel>         = #[#<_pma_probe_feedrate>]
+    #<probesettle>      = #<_pmm_settlingtime>
+    #<rapidvel>         = #<_pmm_rapid_feedrate>
+
+    #<errpin> = #<_ini[PROBE_MACRO]PROBE_ERROR_PIN>
+    #<lowbatpin> = #<_ini[PROBE_MACRO]PROBE_LOW_BAT_PIN>
+    o05 if [#<_pmm_error_status> NE 0]
+        o<_pm_probe> return [-1]
+    o05 endif
+
+    ; check inputs
+    O10 if [#<search_distance> LE 0]
+        #<_pmm_error_status> = -102
+        o<_pm_probe> return [-1]
+    O10 endif
+    O11 if [[#<search_z_angle> LT 0] OR [#<search_z_angle> GT 90]]
+        #<_pmm_error_status> = -103
+        o<_pm_probe> return [-1]
+    O11 endif
+    O12 if [#<searchvel> LE 0]
+        #<_pmm_error_status> = -104
+        o<_pm_probe> return [-1]
+    O12 endif
+    O13 if [#<probevel> LE 0]
+        #<_pmm_error_status> = -105
+        o<_pm_probe> return [-1]
+    O13 endif
+    O14 if [#<probesettle> LT 0]
+        #<_pmm_error_status> = -106
+        o<_pm_probe> return [-1]
+    O14 endif  
+    
+    ;(print, probe _pm_probe call: sd = #<search_distance>, ld = #<latch_distance>, xy angle = #<search_xy_angle>, z angle = #<search_z_angle>, no cal = #<no_cal>)
+
+    ; initial position
+    #<x> = #<_x>
+    #<y> = #<_y>
+    #<z> = #<_z>
+
+    #<x_f> = [COS[#<search_xy_angle>] * COS[#<search_z_angle>]]
+    #<y_f> = [SIN[#<search_xy_angle>] * COS[#<search_z_angle>]]
+    ; always be probing down
+    #<z_f> = [-SIN[#<search_z_angle>]]
+
+    ; Set incremental mode
+    G91
+
+	;simulation mode - emulate the probe
+	o100 if [#<_task> EQ 0]
+		G1 X[#<search_distance> * #<x_f>] Y[#<search_distance> * #<y_f>] Z[#<search_distance> * #<z_f>] F[#<searchvel>]
+		G90 G1 X[#<x>] Y[#<y>] Z[#<z>] F[#<rapidvel>]
+		#[#<_pma_xpos>] = [#<x> + #<target_distance> * #<x_f>]
+		#[#<_pma_ypos>] = [#<y> + #<target_distance> * #<y_f>]
+		#[#<_pma_zpos>] = [#<z> + #<target_distance> * #<z_f>]
+		o<_pm_probe> return [0]
+	o100 endif
+
+    ;check for error
+    ;probe error
+    M66 P#<errpin> L0
+    O20 if [#5399 EQ 1]
+        #<_pmm_error_status> = -107
+        o<_pm_probe> return [-1]
+    O20 endif
+    ;low battery
+    M66 P#<lowbatpin> L0
+    O21 if [#5399 EQ 1]
+        #<_pmm_error_status> = -108
+        o<_pm_probe> return [-1]
+    O21 endif
+
+    ; Check if probe is already tripped
+    O22 if [#<_hal[motion.probe-input]> EQ 1]
+        #<_pmm_error_status> = -109
+        o<_pm_probe> return [-1]
+    O22 endif
+
+    ; Perform the Search
+    G38.3 X[#<search_distance> * #<x_f>] Y[#<search_distance> * #<y_f>] Z[#<search_distance> * #<z_f>] F[#<searchvel>]
+
+    ; Check to see if we failed to make contact
+	o32 if [#<_task>]
+		O30 if [#5070 EQ 0]
+			#<_pmm_error_status> = -110
+			o<_pm_probe> return [-1]
+		O30 endif
+
+		;probe error
+		M66 P#<errpin> L0
+		O31 if [#5399 EQ 1]
+			#<_pmm_error_status> = -107
+			o<_pm_probe> return [-1]
+		O31 endif
+	o32 endif
+    ;(print, probe _pm_probe made inital contact at X = #5061, Y = #5062, Z = #5063)
+
+    ; check how far we moved.  If less that latch_distance then go back to where we started instead of the latch_distance
+    #<dx> = [#<x> - #<_x>]
+    #<dy> = [#<y> - #<_y>]
+    #<dz> = [#<z> - #<_z>]
+    #<dist_moved> = [SQRT[[#<dx> * #<dx>] + [#<dy> * #<dy>] + [#<dz> * #<dz>]]]
+
+	;(print, dist moved: #<dist_moved>)
+    O40 if [#<dist_moved> LT #<latch_distance>]
+        #<latch_dist> = #<dist_moved>
+    O40 else
+        #<latch_dist> = #<latch_distance>
+    O40 endif
+
+	;(print, latch_dist: #<latch_dist>)
+    ; it is safe to do a G1 move here as we already move through this space without issue
+    G1 X[-#<latch_dist> * #<x_f>] Y[-#<latch_dist> * #<y_f>] Z[-#<latch_dist> * #<z_f>] F[#<rapidvel>]
+
+    ; let the probe settle
+    G4 P[#<probesettle>]
+
+    ; Queue buster
+    M66 P#<errpin> L0
+    ; Should never happen but good practice
+    O50 if [#<_hal[motion.probe-input]> EQ 1]
+        #<_pmm_error_status> = -109
+        o<_pm_probe> return [-1]
+    O50 endif
+
+    ; fine probe
+    G38.3 X[#<latch_dist> * 2 * #<x_f>] Y[#<latch_dist> * 2 * #<y_f>] Z[#<latch_dist> * 2 * #<z_f>] F[#<probevel>]
+
+    ; Check to see if we failed to make contact
+	o62 if [#<_task>]
+		O60 if [#5070 EQ 0]
+			#<_pmm_error_status> = -110
+			o<_pm_probe> return [-1]
+		O60 endif
+
+		;probe error
+		M66 P#<errpin> L0
+		O61 if [#5399 EQ 1]
+			#<_pmm_error_status> = -107
+			o<_pm_probe> return [-1]
+		O61 endif
+	o62 endif
+	
+    ;(print, probe _pm_probe made fine contact at X = #5061, Y = #5062, Z = #5063)
+
+    ;(print, moving to start point x#<x> y#<y> z#<z>)
+    ; Move back to start
+    G90 G1 X[#<x>] Y[#<y>] Z[#<z>] F[#<rapidvel>]
+    ;(print, wait for probe)
+    ; let the probe settle
+    G4 P[#<probesettle>]
+
+    ; vector calibration
+    #<cal_vector> = [ROUND[#<search_xy_angle> / 30]]
+    ;prevent overflow
+    #<cal_vector> = [#<cal_vector> MOD 12]
+    #<xoffset> = 0
+	#<yoffset> = 0
+    ;(print, cal vector = #<cal_vector>)
+    o65 if [#<cal_vector> EQ 0]
+        ;0deg x+
+        #[#<_pma_cal_active_vector>] = [#<_pma_cal_base> + #<_pma_cal_xrad>]
+        #<xoffset> = [-#[#<_pma_cal_base> + #<_pma_cal_xoff>]]
+    o65 elseif [#<cal_vector> EQ 1]
+        ;30deg
+        #[#<_pma_cal_active_vector>] = [#<_pma_cal_vec_base> + 0]
+    o65 elseif [#<cal_vector> EQ 2]
+        ;60deg
+        #[#<_pma_cal_active_vector>] = [#<_pma_cal_vec_base> + 1]
+    o65 elseif [#<cal_vector> EQ 3]
+        ;90deg y+
+        #[#<_pma_cal_active_vector>] = [#<_pma_cal_base> + #<_pma_cal_yrad>]
+        #<yoffset> = [-#[#<_pma_cal_base> + #<_pma_cal_yoff>]]
+    o65 elseif [#<cal_vector> EQ 4]
+        ;120deg
+        #[#<_pma_cal_active_vector>] = [#<_pma_cal_vec_base> + 2]
+    o65 elseif [#<cal_vector> EQ 5]
+        ;150deg
+        #[#<_pma_cal_active_vector>] = [#<_pma_cal_vec_base> + 3]
+    o65 elseif [#<cal_vector> EQ 6]
+        ;180deg x-
+        #[#<_pma_cal_active_vector>] = [#<_pma_cal_base> + #<_pma_cal_xrad>]
+        #<xoffset> = [-#[#<_pma_cal_base> + #<_pma_cal_xoff>]]
+    o65 elseif [#<cal_vector> EQ 7]
+        ;210deg
+        #[#<_pma_cal_active_vector>] = [#<_pma_cal_vec_base> + 4]
+    o65 elseif [#<cal_vector> EQ 8]
+        ;240deg
+        #[#<_pma_cal_active_vector>] = [#<_pma_cal_vec_base> + 5]
+    o65 elseif [#<cal_vector> EQ 9]
+        ;270deg y-
+        #[#<_pma_cal_active_vector>] = [#<_pma_cal_base> + #<_pma_cal_yrad>]
+        #<yoffset> = [-#[#<_pma_cal_base> + #<_pma_cal_yoff>]]
+    o65 elseif [#<cal_vector> EQ 10]
+        ;300deg
+        #[#<_pma_cal_active_vector>] = [#<_pma_cal_vec_base> + 6]
+    o65 elseif [#<cal_vector> EQ 11]
+        ;330deg
+        #[#<_pma_cal_active_vector>] = [#<_pma_cal_vec_base> + 7]
+    o65 endif
+    #<rad_value> = #[#[#<_pma_cal_active_vector>]]
+
+    ;#<xrad> = [COS[#<search_xy_angle>] * #<rad_value> + #<xyoffset>]
+    ;#<yrad> = [SIN[#<search_xy_angle>] * #<rad_value> + #<xyoffset>]
+    #<xrad> = [COS[#<search_xy_angle>] * #<rad_value>]
+    #<yrad> = [SIN[#<search_xy_angle>] * #<rad_value>]
+
+    ;(print, probe _pm_probe cal vector = #<cal_vector>, x radius cal value = #<xrad>, y radius cal value = #<yrad>)
+
+    #<xcal> = #5061
+    #<ycal> = #5062
+    #<zcal> = #5063
+    o70 if [[#<no_cal> EQ 0] AND [#<search_z_angle> EQ 0]]
+        ; calibration is only valid in the xy plane
+        #<xcal> = [#<xcal> + #<xrad> + #<xoffset>]
+		;#[#<_pma_cal_base> + #<_pma_cal_xoff>]]
+        #<ycal> = [#<ycal> + #<yrad> + #<yoffset>]
+		;- #[#<_pma_cal_base> + #<_pma_cal_yoff>]]
+        #<zcal> = #<zcal>
+    o70 endif
+    #[#<_pma_xpos>] = #<xcal>
+    #[#<_pma_ypos>] = #<ycal>
+    #[#<_pma_zpos>] = #<zcal>
+
+    ;(print, probe _pm_probe final location X = #<xcal>, Y = #<ycal>, Z = #<zcal>)
+
+o<_pm_probe> endsub [0]
+M2

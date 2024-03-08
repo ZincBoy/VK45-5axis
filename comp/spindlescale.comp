@@ -1,0 +1,66 @@
+component spindlescale "scales the spindle encoder to rpm with gear ratio factored in";
+pin in  float vel-rps;
+pin in  float position;
+pin in  bit low-gear-switch;
+pin in  bit spindle-valid;
+pin io  bit motor-encoder-index;
+pin io  bit spindle-index;
+pin out float vel-rpm;
+pin out float out-vel-rps;
+pin out float out-position;
+param rw float low-ratio=0.213075061;        //ratio in low gear
+param rw float high-ratio=1.142857143;       //ratio in high gear
+
+variable int indexstate = 0;
+variable float posoffset = 0;
+
+author "alex lait";
+license "GPL";
+function _;
+
+;;
+
+FUNCTION(_){
+
+	// virtual encoder index creation, not as accurate as a hw index, but should be good for our needs
+	switch (indexstate)
+	{
+		case 0:  //wait for an index event
+			if (spindle_index)
+			{
+				motor_encoder_index = 1;
+				indexstate = 1;
+			}
+			break;
+		
+		case 1:  //wait for the motor encoder to find index and the spindle position to be away from the valid sensor range
+			if (!motor_encoder_index && !spindle_valid)
+			{
+				indexstate = 2;
+			}
+			break;
+			
+		case 2:  //once we see the valid sensor signal, indicate the index event is done
+			if (spindle_valid)
+			{
+				posoffset = position;
+				spindle_index = 0;
+				indexstate = 0;
+			}
+			break;
+		
+		default:
+			indexstate = 0;
+	}
+	
+	if (low_gear_switch) {
+		vel_rpm = vel_rps * 60 * low_ratio;
+		out_vel_rps = vel_rps * low_ratio;
+		out_position = (position - posoffset) * low_ratio;
+	} else {
+		vel_rpm = vel_rps * 60 * high_ratio;
+		out_vel_rps = vel_rps * high_ratio;
+		out_position = (position - posoffset) * high_ratio;
+	}
+
+}

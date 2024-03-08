@@ -1,0 +1,932 @@
+loadrt [KINS]KINEMATICS
+loadrt [EMCMOT]EMCMOT servo_period_nsec=[EMCMOT]SERVO_PERIOD num_joints=[KINS]JOINTS num_dio=16 unlock_joints_mask=[EMCMOT]UNLOCK_MASK
+loadrt hostmot2
+loadrt hm2_eth config=" num_encoders=6 num_pwmgens=6 sserial_port_0=101xxx sserial_port_1=1111xx" board_ip=10.10.10.10 
+
+setp    hm2_7i98.0.watchdog.timeout_ns 5000000
+loadrt pid                    names=pid.x,pid.y,pid.z,pid.a,pid.c,pid.s
+loadrt gearchange4            names=gearchange
+loadrt orientfilter8          names=orientfilter
+loadrt spindlescale           names=spindlescale
+loadrt toolclamp              names=toolclamp
+loadrt carousel2 pockets=20 encoding=index dir=1
+loadrt near                   names=near.s
+loadrt and2                   names=and.s
+loadrt abs                    names=abs.spindle,abs_spindle_load
+loadrt oneshot                names=spindle_start_pulse
+loadrt carouselindex          names=carouselindex
+loadrt vk45toolchange3        names=toolchange
+loadrt probe_selector3        names=probe_selector
+loadrt vk45_probe_sensitivity names=probe_sensitivity
+loadrt axis_load_scale        names=axis_load_scale
+loadrt music_and_light        names=music
+loadrt hardware_monitor       names=hwmon
+loadrt plc_replace2           names=plc
+loadrt coolant_control        names=coolant
+loadrt axis_emulator          names=axisemu.a,axisemu.c
+
+addf hm2_7i98.0.read          servo-thread
+addf motion-command-handler   servo-thread
+addf motion-controller        servo-thread
+addf pid.x.do-pid-calcs       servo-thread
+addf pid.y.do-pid-calcs       servo-thread
+addf pid.z.do-pid-calcs       servo-thread
+addf pid.a.do-pid-calcs       servo-thread
+addf pid.c.do-pid-calcs       servo-thread
+addf pid.s.do-pid-calcs       servo-thread
+addf gearchange               servo-thread
+addf orientfilter             servo-thread
+addf spindlescale             servo-thread
+addf toolclamp                servo-thread
+addf carousel2.0              servo-thread
+addf and.s                    servo-thread
+addf abs.spindle              servo-thread
+addf abs_spindle_load         servo-thread
+addf near.s                   servo-thread
+addf spindle_start_pulse      servo-thread
+addf carouselindex            servo-thread
+addf toolchange               servo-thread
+addf probe_selector           servo-thread
+addf probe_sensitivity        servo-thread
+addf axis_load_scale          servo-thread
+addf music                    servo-thread
+addf hwmon                    servo-thread
+addf plc                      servo-thread
+addf axisemu.a                servo-thread
+addf axisemu.c                servo-thread
+addf coolant                  servo-thread
+addf hm2_7i98.0.write         servo-thread
+
+# external output signals
+
+
+# --- machine outputs ---
+net spindle-reset                               =>  hm2_7i98.0.7i77.0.0.output-00
+net spindle-drive-enable                        =>  hm2_7i98.0.7i77.0.0.output-01
+net spindle-clr                                 =>  hm2_7i98.0.7i77.0.0.output-02
+net spindle-stat                                =>  hm2_7i98.0.7i77.0.0.output-03
+#  UNUSED                                       =>  hm2_7i98.0.7i77.0.0.output-04
+net c-air-purge-on                              =>  hm2_7i98.0.7i77.0.0.output-05
+#probe sensitvity, reduces sensitivity if the spindle is turning.
+net probe_sens                                  =>  hm2_7i98.0.7i77.0.0.output-06
+# ESTOP-OUT
+net estop-out                                   =>  hm2_7i98.0.7i77.0.0.output-07
+net spindle-step                                =>  hm2_7i98.0.7i77.0.0.output-08
+net spindle-dir                                 =>  hm2_7i98.0.7i77.0.0.output-09
+net renishaw-en0                                =>  hm2_7i98.0.7i77.0.0.output-10
+net renishaw-en1                                =>  hm2_7i98.0.7i77.0.0.output-11
+net music-sel-0                                 =>  hm2_7i98.0.7i77.0.0.output-12
+net music-sel-1                                 =>  hm2_7i98.0.7i77.0.0.output-13
+net music-sel-2                                 =>  hm2_7i98.0.7i77.0.0.output-14
+net music-enable                                =>  hm2_7i98.0.7i77.0.0.output-15
+
+net hyd_pump_on                                 =>  hm2_7i98.0.7i84.1.0.output-00
+net lub_motor_on                                =>  hm2_7i98.0.7i84.1.0.output-01
+net coolant-pump-on                             =>  hm2_7i98.0.7i84.1.0.output-02
+net fp-conveyor                                 =>  hm2_7i98.0.7i84.1.0.output-03
+net coolant-air                                 =>  hm2_7i98.0.7i84.1.0.output-04
+net call_light                                  =>  hm2_7i98.0.7i84.1.0.output-05
+net spindle_purge                               =>  hm2_7i98.0.7i84.1.0.output-06
+net tool_unclamp                                =>  hm2_7i98.0.7i84.1.0.output-07
+net spindle_low_gear                            =>  hm2_7i98.0.7i84.1.0.output-08
+net spindle_high_gear                           =>  hm2_7i98.0.7i84.1.0.output-09
+# always keep the light on
+#net fp-light                                    =>  hm2_7i98.0.7i84.1.0.output-10
+net machine-is-on                               =>  hm2_7i98.0.7i84.1.0.output-10
+net dynamic_brake                               =>  hm2_7i98.0.7i84.1.0.output-11
+net a_axis_clamp                                =>  hm2_7i98.0.7i84.1.0.output-12
+net c_axis_clamp								=>  hm2_7i98.0.7i84.1.0.output-13
+# c axis servo drive reset, triggered on power on to clear drive errors
+net servo-drive-reset                           =>  hm2_7i98.0.7i84.1.0.output-14
+# turns off the Z axis brake when the amp is enabled
+net z-unbrake                                   =>  hm2_7i98.0.7i84.1.0.output-15
+
+# extended coolant functions
+net coolant-spindle-flood                       => hm2_7i98.0.7i84.1.1.output-13
+net coolant-aimed-flood                         => hm2_7i98.0.7i84.1.1.output-14
+net coolant-filter-purge                        => hm2_7i98.0.7i84.1.1.output-15
+
+
+# --- ESTOP-EXT ---
+net estop-ext                                   <=  hm2_7i98.0.7i77.0.0.input-11
+
+# --- LIMIT SWITCHES ---
+net max-x                                       <=  hm2_7i98.0.7i84.1.0.input-07-not
+net min-x                                       <=  hm2_7i98.0.7i84.1.0.input-08-not
+net home-x                                      <=  hm2_7i98.0.7i84.1.0.input-09-not
+net max-y                                       <=  hm2_7i98.0.7i84.1.0.input-10-not
+net min-y                                       <=  hm2_7i98.0.7i84.1.0.input-11-not
+net home-y                                      <=  hm2_7i98.0.7i84.1.0.input-12-not
+net max-z                                       <=  hm2_7i98.0.7i84.1.0.input-13-not
+net min-z                                       <=  hm2_7i98.0.7i84.1.0.input-14-not
+net home-z                                      <=  hm2_7i98.0.7i84.1.0.input-15-not
+net home-a                                      <=  hm2_7i98.0.7i77.0.0.input-19-not
+net home-c                                      <=  hm2_7i98.0.7i77.0.0.input-31-not
+
+# --- ALARM INPUTS ---
+net spindle_overheat                            <=  hm2_7i98.0.7i84.1.0.input-04-not
+net brake_overheat                              <=  hm2_7i98.0.7i84.1.0.input-05-not
+net spindle_fault                               <=  hm2_7i98.0.7i84.1.0.input-06
+net servo_pwr_alarm                             <=  hm2_7i98.0.7i84.1.0.input-24-not
+net servo_amp_overheat                          <=  hm2_7i98.0.7i84.1.0.input-25-not
+net lube_level_low                              <=  hm2_7i98.0.7i84.1.0.input-26
+net hyd_pump_running                            <=  hm2_7i98.0.7i84.1.0.input-27
+net flood_pump_running                          <=  hm2_7i98.0.7i84.1.0.input-28
+net conveyor_running                            <=  hm2_7i98.0.7i84.1.0.input-29
+net x_amp_fault                                 <=  hm2_7i98.0.7i77.0.0.input-05-not
+net y_amp_fault                                 <=  hm2_7i98.0.7i77.0.0.input-06-not
+net z_amp_fault                                 <=  hm2_7i98.0.7i77.0.0.input-07-not
+net a_connected      						    <=  hm2_7i98.0.7i77.0.0.input-22
+net a_amp_fault                                 <=  hm2_7i98.0.7i77.0.0.input-23-not
+net c_axis_clamped                              <=  hm2_7i98.0.7i77.0.0.input-24-not
+net c_connected                                 <=  hm2_7i98.0.7i77.0.0.input-25
+net c_amp_fault                                 <=  hm2_7i98.0.7i77.0.0.input-26-not
+net c_amp_ready									<=  hm2_7i98.0.7i77.0.0.input-27-not
+
+# --- USER BUTTONS ---
+net tool_clamp_button                           <=  hm2_7i98.0.7i84.1.0.input-16-not
+net tool_unclamp_button                         <=  hm2_7i98.0.7i84.1.0.input-17-not
+
+# --- FEEDBACK SWITCHES ---
+net tool_clamped                                <=  hm2_7i98.0.7i84.1.0.input-18
+net tool_unclamped                              <=  hm2_7i98.0.7i84.1.0.input-19
+net spindle_in_low                              <=  hm2_7i98.0.7i84.1.0.input-20
+net spindle_in_high                             <=  hm2_7i98.0.7i84.1.0.input-21
+net lube_pressure                               <=  hm2_7i98.0.7i84.1.0.input-22
+net vk45-probe-in                               <=  hm2_7i98.0.7i84.1.0.input-23-not
+
+
+#*******************
+#  Hardware monitor
+#*******************
+net gui-error                                   =>  hwmon.gui-error
+net machine-is-on                               =>  hwmon.machine-is-on
+net spindle_overheat                            =>  hwmon.spindle-overheat
+net spindle_fault                               =>  hwmon.spindle-fault
+net servo_pwr_alarm                             =>  hwmon.servo-pwr-alarm
+net servo_amp_overheat                          =>  hwmon.servo-amp-overheat
+net lube_level_low                              =>  hwmon.lube-level-low
+net hyd_pump_on                                 =>  hwmon.hyd-pump-on
+net hyd_pump_running                            =>  hwmon.hyd-pump-running
+net coolant-pump-on                             =>  hwmon.flood-pump-on
+net flood_pump_running                          =>  hwmon.flood-pump-running
+net fp-conveyor                                 =>  hwmon.conveyor-on
+net conveyor_running                            =>  hwmon.conveyor-running
+
+net hardware-error                              <=  hwmon.hardware-error
+net hardware-warn                               <=  hwmon.hardware-warn
+
+#*******************
+#  Lights and Sounds
+#*******************
+net machine-is-on                               =>  music.machine-is-on
+net gui-error                                   =>  music.gui-error
+net gui-delete-msg                              =>  music.delete-message
+net fp-is-running                               =>  music.program-is-running
+net fp-prog-idle                                =>  music.program-is-idle
+net hardware-error                              =>  music.hardware-fault
+net hardware-warn                               =>  music.hardware-warn
+net music-mcode-en                              =>  music.m-code-en
+net music-mcode-0                               =>  music.m-code-0
+net music-mcode-1                               =>  music.m-code-1
+
+net music-mcode-en                              <=  motion.digital-out-[MUSIC]MUSIC_PIN_EN
+net music-mcode-0                               <=  motion.digital-out-[MUSIC]MUSIC_PIN_0
+net music-mcode-1                               <=  motion.digital-out-[MUSIC]MUSIC_PIN_1
+
+net call_light                                  <=  music.alarm-light
+net music-enable                                <=  music.music-enable
+net music-sel-0                                 <=  music.music-sel-0
+net music-sel-1                                 <=  music.music-sel-1
+net music-sel-2                                 <=  music.music-sel-2
+
+#*******************
+#  Coolant
+#*******************
+net coolant-spindle-flood                       <= coolant.flood-valve
+net coolant-aimed-flood                         <= coolant.aimed-valve
+net coolant-filter-purge                        <= coolant.purge-valve
+net coolant-pump-on                             <= coolant.pump-on
+net coolant-flood                               => coolant.flood-enable
+net coolant-aimed                               => coolant.aimed-enable
+# net coolant-washdown                            => coolant.washdown-enable
+net coolant-mist                                => coolant.washdown-enable
+net machine-is-on                               => coolant.machine-enable
+
+net coolant-aimed                               <=  motion.digital-out-[COOLANT]AIMED_PIN
+net coolant-washdown                            <=  motion.digital-out-[COOLANT]WASH_PIN
+net coolant-air                                 <=  motion.digital-out-[COOLANT]AIR_PIN
+
+net fp-aimed-on                                 => coolant.aimed-on
+net fp-aimed-off                                => coolant.aimed-off
+net fp-aimed-is-on                              <= coolant.aimed-is-on 
+
+#*******************
+#  PLC emulation
+#*******************
+net estop-ext                                   =>  plc.ext-estop
+net pdnt.button.reset                           =>  plc.pendant-estop
+net fp-machine-on                               =>  plc.machine-on
+net fp-machine-off                              =>  plc.machine-off
+net z-enable                                    =>  plc.z-axis-enable
+net hal-machine-is-on                           =>  plc.ext-machine-is-on
+net coolant-pump-on								=>  plc.coolant-pump-on
+net c_connected                                 =>  plc.c-axis-present
+net fp-is-running                               =>  plc.program-running
+net dynamic_brake                               <=  plc.servo-brake-not
+net hyd_pump_on                                 <=  plc.hydraulic-on
+net z-unbrake                                   <=  plc.z-axis-brake
+net lub_motor_on                                <=  plc.lube-on
+net estop-ext-plc                               <=  plc.ext-estop-out
+net machine-is-on                               <=  plc.machine-is-on
+net servo-drive-reset                           <=  plc.servo-drive-reset
+net c-air-purge-on                              <=  plc.c-axis-purge
+
+setp plc.lube-period 7200
+setp plc.lube-on-time 1800
+
+#*******************
+#  AXIS X JOINT 0
+#*******************
+
+setp   pid.x.Pgain     [JOINT_0]P
+setp   pid.x.Igain     [JOINT_0]I
+setp   pid.x.Dgain     [JOINT_0]D
+setp   pid.x.bias      [JOINT_0]BIAS
+setp   pid.x.FF0       [JOINT_0]FF0
+setp   pid.x.FF1       [JOINT_0]FF1
+setp   pid.x.FF2       [JOINT_0]FF2
+setp   pid.x.FF3       [JOINT_0]FF3
+setp   pid.x.deadband  [JOINT_0]DEADBAND
+setp   pid.x.maxoutput [JOINT_0]MAX_OUTPUT
+setp   pid.x.error-previous-target true
+
+net x-index-enable  <=> pid.x.index-enable
+net x-enable        =>  pid.x.enable
+net x-pos-cmd       =>  pid.x.command
+net x-pos-fb        =>  pid.x.feedback
+net x-output        <=  pid.x.output
+
+# ---PWM Generator signals/setup---
+
+setp   hm2_7i98.0.7i77.0.1.analogout0-scalemax  [JOINT_0]OUTPUT_SCALE
+setp   hm2_7i98.0.7i77.0.1.analogout0-minlim    [JOINT_0]OUTPUT_MIN_LIMIT
+setp   hm2_7i98.0.7i77.0.1.analogout0-maxlim    [JOINT_0]OUTPUT_MAX_LIMIT
+
+net x-output     => hm2_7i98.0.7i77.0.1.analogout0
+net x-pos-cmd    <= joint.0.motor-pos-cmd
+net x-enable     <= joint.0.amp-enable-out
+# enable _all_ sserial pwmgens
+net x-enable     => hm2_7i98.0.7i77.0.1.analogena
+
+# ---Encoder feedback signals/setup---
+
+setp    hm2_7i98.0.encoder.00.counter-mode 0
+setp    hm2_7i98.0.encoder.00.filter 0
+setp    hm2_7i98.0.encoder.00.index-invert 0
+setp    hm2_7i98.0.encoder.00.index-mask 0
+setp    hm2_7i98.0.encoder.00.index-mask-invert 0
+setp    hm2_7i98.0.encoder.00.scale  [JOINT_0]ENCODER_SCALE
+
+net x-pos-fb               <=  hm2_7i98.0.encoder.00.position
+net x-vel-fb               <=  hm2_7i98.0.encoder.00.velocity
+net x-pos-fb               =>  joint.0.motor-pos-fb
+net x-index-enable    joint.0.index-enable  <=>  hm2_7i98.0.encoder.00.index-enable
+net x-pos-rawcounts        <=  hm2_7i98.0.encoder.00.rawcounts
+net x_amp_fault            =>  joint.0.amp-fault-in
+
+# ---setup home / limit switch signals---
+
+#net home-x     =>  joint.0.home-sw-in
+net min-x     =>  joint.0.home-sw-in
+net min-x     =>  joint.0.neg-lim-sw-in
+net max-x     =>  joint.0.pos-lim-sw-in
+
+# ---amp load calcs ---
+net  x-volts        hm2_7i98.0.7i77.0.0.analogin1      =>  axis_load_scale.x-axis-in
+net  x-load                                            <=  axis_load_scale.x-load
+setp                axis_load_scale.x-offset      12.1
+setp                axis_load_scale.x-peak        3.92
+
+#*******************
+#  AXIS Y JOINT 1
+#*******************
+
+setp   pid.y.Pgain     [JOINT_1]P
+setp   pid.y.Igain     [JOINT_1]I
+setp   pid.y.Dgain     [JOINT_1]D
+setp   pid.y.bias      [JOINT_1]BIAS
+setp   pid.y.FF0       [JOINT_1]FF0
+setp   pid.y.FF1       [JOINT_1]FF1
+setp   pid.y.FF2       [JOINT_1]FF2
+setp   pid.y.FF3       [JOINT_1]FF3
+setp   pid.y.deadband  [JOINT_1]DEADBAND
+setp   pid.y.maxoutput [JOINT_1]MAX_OUTPUT
+setp   pid.y.error-previous-target true
+
+net y-index-enable  <=> pid.y.index-enable
+net y-enable        =>  pid.y.enable
+net y-pos-cmd       =>  pid.y.command
+net y-pos-fb        =>  pid.y.feedback
+net y-output        <=  pid.y.output
+
+# ---PWM Generator signals/setup---
+
+setp   hm2_7i98.0.7i77.0.1.analogout1-scalemax  [JOINT_1]OUTPUT_SCALE
+setp   hm2_7i98.0.7i77.0.1.analogout1-minlim    [JOINT_1]OUTPUT_MIN_LIMIT
+setp   hm2_7i98.0.7i77.0.1.analogout1-maxlim    [JOINT_1]OUTPUT_MAX_LIMIT
+
+net y-output     => hm2_7i98.0.7i77.0.1.analogout1
+net y-pos-cmd    <= joint.1.motor-pos-cmd
+net y-enable     <= joint.1.amp-enable-out
+net y_amp_fault  =>  joint.1.amp-fault-in
+
+# ---Encoder feedback signals/setup---
+
+setp    hm2_7i98.0.encoder.01.counter-mode 0
+setp    hm2_7i98.0.encoder.01.filter 0
+setp    hm2_7i98.0.encoder.01.index-invert 0
+setp    hm2_7i98.0.encoder.01.index-mask 0
+setp    hm2_7i98.0.encoder.01.index-mask-invert 0
+setp    hm2_7i98.0.encoder.01.scale  [JOINT_1]ENCODER_SCALE
+
+net y-pos-fb               <=  hm2_7i98.0.encoder.01.position
+net y-vel-fb               <=  hm2_7i98.0.encoder.01.velocity
+net y-pos-fb               =>  joint.1.motor-pos-fb
+net y-index-enable    joint.1.index-enable  <=>  hm2_7i98.0.encoder.01.index-enable
+net y-pos-rawcounts        <=  hm2_7i98.0.encoder.01.rawcounts
+
+# ---setup home / limit switch signals---
+
+#net home-y     =>  joint.1.home-sw-in
+net max-y     =>  joint.1.home-sw-in
+net min-y     =>  joint.1.neg-lim-sw-in
+net max-y     =>  joint.1.pos-lim-sw-in
+
+# ---amp load calcs ---
+net  y-volts        hm2_7i98.0.7i77.0.0.analogin2      =>  axis_load_scale.y-axis-in
+net  y-load                                            <=  axis_load_scale.y-load
+setp                axis_load_scale.y-offset      12.1
+setp                axis_load_scale.y-peak        3.92
+
+#*******************
+#  AXIS Z JOINT 2
+#*******************
+
+setp   pid.z.Pgain     [JOINT_2]P
+setp   pid.z.Igain     [JOINT_2]I
+setp   pid.z.Dgain     [JOINT_2]D
+setp   pid.z.bias      [JOINT_2]BIAS
+setp   pid.z.FF0       [JOINT_2]FF0
+setp   pid.z.FF1       [JOINT_2]FF1
+setp   pid.z.FF2       [JOINT_2]FF2
+setp   pid.z.FF3       [JOINT_2]FF3
+setp   pid.z.deadband  [JOINT_2]DEADBAND
+setp   pid.z.maxoutput [JOINT_2]MAX_OUTPUT
+setp   pid.z.error-previous-target true
+
+net z-index-enable  <=> pid.z.index-enable
+net z-enable        =>  pid.z.enable
+net z-pos-cmd       =>  pid.z.command
+net z-pos-fb        =>  pid.z.feedback
+net z-output        <=  pid.z.output
+
+# ---PWM Generator signals/setup---
+
+setp   hm2_7i98.0.7i77.0.1.analogout2-scalemax  [JOINT_2]OUTPUT_SCALE
+setp   hm2_7i98.0.7i77.0.1.analogout2-minlim    [JOINT_2]OUTPUT_MIN_LIMIT
+setp   hm2_7i98.0.7i77.0.1.analogout2-maxlim    [JOINT_2]OUTPUT_MAX_LIMIT
+
+net z-output     =>  hm2_7i98.0.7i77.0.1.analogout2
+net z-pos-cmd    <=  joint.2.motor-pos-cmd
+net z-enable     <=  joint.2.amp-enable-out
+net z_amp_fault          =>  joint.2.amp-fault-in
+
+# ---Encoder feedback signals/setup---
+
+setp    hm2_7i98.0.encoder.02.counter-mode 0
+setp    hm2_7i98.0.encoder.02.filter 0
+setp    hm2_7i98.0.encoder.02.index-invert 0
+setp    hm2_7i98.0.encoder.02.index-mask 0
+setp    hm2_7i98.0.encoder.02.index-mask-invert 0
+setp    hm2_7i98.0.encoder.02.scale  [JOINT_2]ENCODER_SCALE
+
+net z-pos-fb               <=  hm2_7i98.0.encoder.02.position
+net z-vel-fb               <=  hm2_7i98.0.encoder.02.velocity
+net z-pos-fb               =>  joint.2.motor-pos-fb
+net z-index-enable    joint.2.index-enable  <=>  hm2_7i98.0.encoder.02.index-enable
+net z-pos-rawcounts        <=  hm2_7i98.0.encoder.02.rawcounts
+
+# ---setup home / limit switch signals---
+
+#net home-z     =>  joint.2.home-sw-in
+net max-z     =>  joint.2.home-sw-in
+net min-z     =>  joint.2.neg-lim-sw-in
+net max-z     =>  joint.2.pos-lim-sw-in
+
+# ---amp load calcs ---
+net  z-volts        hm2_7i98.0.7i77.0.0.analogin3      =>  axis_load_scale.z-axis-in
+net  z-load                                            <=  axis_load_scale.z-load
+setp                axis_load_scale.z-offset      12.1
+setp                axis_load_scale.z-peak        6.78
+
+#*******************
+#  AXIS A JOINT 3
+#*******************
+
+setp   pid.a.Pgain     [JOINT_3]P
+setp   pid.a.Igain     [JOINT_3]I
+setp   pid.a.Dgain     [JOINT_3]D
+setp   pid.a.bias      [JOINT_3]BIAS
+setp   pid.a.FF0       [JOINT_3]FF0
+setp   pid.a.FF1       [JOINT_3]FF1
+setp   pid.a.FF2       [JOINT_3]FF2
+setp   pid.a.FF3       [JOINT_3]FF3
+setp   pid.a.deadband  [JOINT_3]DEADBAND
+setp   pid.a.maxoutput [JOINT_3]MAX_OUTPUT
+setp   pid.a.error-previous-target true
+
+net a-index-en-buf  <=> pid.a.index-enable
+net a-enable        =>  pid.a.enable
+net a-pos-cmd       =>  pid.a.command
+net a-pos-fb-buf    =>  pid.a.feedback
+net a-output        <=  pid.a.output
+
+# ---disconnect logic
+
+net a_connected      =>    axisemu.a.axis-connected
+net a-enable         =>    axisemu.a.amp-enable-in
+net home-a           =>    axisemu.a.home-sw-in
+net a-pos-cmd        =>    axisemu.a.pos-cmd-in
+net a-pos-fb         =>    axisemu.a.pos-fb-in
+net a_amp_fault      =>    axisemu.a.amp-fault-in
+net a-index-enable  <=>    axisemu.a.enc-index
+net a-index-en-buf  <=>    axisemu.a.enc-index-buf
+net a-enable-buf     <=    axisemu.a.amp-enable-out
+net home-a-buf       =>    axisemu.a.home-sw-out
+net a-pos-cmd-buf    <=    axisemu.a.pos-cmd-out
+net a-pos-fb-buf     <=    axisemu.a.pos-fb-out
+net a-fault-buf      <=    axisemu.a.amp-fault-out
+
+# ---PWM Generator signals/setup---
+
+setp   hm2_7i98.0.7i77.0.1.analogout3-scalemax  [JOINT_3]OUTPUT_SCALE
+setp   hm2_7i98.0.7i77.0.1.analogout3-minlim    [JOINT_3]OUTPUT_MIN_LIMIT
+setp   hm2_7i98.0.7i77.0.1.analogout3-maxlim    [JOINT_3]OUTPUT_MAX_LIMIT
+
+net a-output     =>  hm2_7i98.0.7i77.0.1.analogout3
+net a-pos-cmd    <=  joint.3.motor-pos-cmd
+net a-enable     <=  joint.3.amp-enable-out
+net a-fault-buf  =>  joint.3.amp-fault-in
+
+
+# ---Encoder feedback signals/setup---
+
+setp    hm2_7i98.0.encoder.03.counter-mode 0
+setp    hm2_7i98.0.encoder.03.filter 0
+setp    hm2_7i98.0.encoder.03.index-invert 0
+setp    hm2_7i98.0.encoder.03.index-mask 0
+setp    hm2_7i98.0.encoder.03.index-mask-invert 0
+setp    hm2_7i98.0.encoder.03.scale  [JOINT_3]ENCODER_SCALE
+
+net a-pos-fb               <=   hm2_7i98.0.encoder.03.position
+net a-vel-fb               <=   hm2_7i98.0.encoder.03.velocity
+net a-pos-fb-buf            =>  joint.3.motor-pos-fb
+net a-index-enable         <=>  hm2_7i98.0.encoder.03.index-enable
+net a-index-en-buf         <=>  joint.3.index-enable
+net a-pos-rawcounts        <=   hm2_7i98.0.encoder.03.rawcounts
+
+# ---setup home / limit switch signals---
+
+net home-a-buf =>  joint.3.home-sw-in
+
+# --- brake logic
+#net a_axis_clamp
+#net a_axis_clamped
+
+
+# ---amp load calcs ---
+#net  a-volts        hm2_7i98.0.7i77.0.0.analogin0      =>  axis_load_scale.a-axis-in
+#net  a-load                                            <=  axis_load_scale.a-load
+#setp                axis_load_scale.a-offset      12.1
+#setp                axis_load_scale.a-peak        6.78
+
+#*******************
+#  AXIS C JOINT 4
+#*******************
+
+setp   pid.c.Pgain     [JOINT_4]P
+setp   pid.c.Igain     [JOINT_4]I
+setp   pid.c.Dgain     [JOINT_4]D
+setp   pid.c.bias      [JOINT_4]BIAS
+setp   pid.c.FF0       [JOINT_4]FF0
+setp   pid.c.FF1       [JOINT_4]FF1
+setp   pid.c.FF2       [JOINT_4]FF2
+setp   pid.c.FF3       [JOINT_4]FF3
+setp   pid.c.deadband  [JOINT_4]DEADBAND
+setp   pid.c.maxoutput [JOINT_4]MAX_OUTPUT
+setp   pid.c.error-previous-target true
+
+net c-index-en-buf  <=> pid.c.index-enable
+net c-enable        =>  pid.c.enable
+net c-pos-cmd       =>  pid.c.command
+net c-pos-fb-buf    =>  pid.c.feedback
+net c-output        <=  pid.c.output
+
+# ---disconnect logic
+
+net c_connected      =>    axisemu.c.axis-connected
+net c-enable         =>    axisemu.c.amp-enable-in
+net home-c           =>    axisemu.c.home-sw-in
+net c-pos-cmd        =>    axisemu.c.pos-cmd-in
+net c-pos-fb         =>    axisemu.c.pos-fb-in
+net c_amp_fault      =>    axisemu.c.amp-fault-in
+net c-index-enable  <=>    axisemu.c.enc-index
+net c-index-en-buf  <=>    axisemu.c.enc-index-buf
+net c-enable-buf     <=    axisemu.c.amp-enable-out
+net home-c-buf       =>    axisemu.c.home-sw-out
+net c-pos-cmd-buf    <=    axisemu.c.pos-cmd-out
+net c-pos-fb-buf     <=    axisemu.c.pos-fb-out
+net c-fault-buf      <=    axisemu.c.amp-fault-out
+
+# ---PWM Generator signals/setup---
+
+setp   hm2_7i98.0.7i77.0.1.analogout4-scalemax  [JOINT_4]OUTPUT_SCALE
+setp   hm2_7i98.0.7i77.0.1.analogout4-minlim    [JOINT_4]OUTPUT_MIN_LIMIT
+setp   hm2_7i98.0.7i77.0.1.analogout4-maxlim    [JOINT_4]OUTPUT_MAX_LIMIT
+
+net c-output     =>  hm2_7i98.0.7i77.0.1.analogout4
+net c-pos-cmd    <=  joint.4.motor-pos-cmd
+net c-enable     <=  joint.4.amp-enable-out
+net c-fault-buf  =>  joint.4.amp-fault-in
+
+# ---Encoder feedback signals/setup---
+
+setp    hm2_7i98.0.encoder.04.counter-mode 0
+setp    hm2_7i98.0.encoder.04.filter 0
+setp    hm2_7i98.0.encoder.04.index-invert 0
+setp    hm2_7i98.0.encoder.04.index-mask 0
+setp    hm2_7i98.0.encoder.04.index-mask-invert 0
+setp    hm2_7i98.0.encoder.04.scale  [JOINT_4]ENCODER_SCALE
+
+net c-pos-fb               <=   hm2_7i98.0.encoder.04.position
+net c-vel-fb               <=   hm2_7i98.0.encoder.04.velocity
+net c-pos-fb-buf            =>  joint.4.motor-pos-fb
+net c-index-enable         <=>  hm2_7i98.0.encoder.04.index-enable
+net c-index-en-buf         <=>  joint.4.index-enable
+net c-pos-rawcounts        <=   hm2_7i98.0.encoder.04.rawcounts
+
+# ---setup home / limit switch signals---
+
+net home-c-buf =>  joint.4.home-sw-in
+
+# --- brake logic
+#net c_axis_clamp
+#net c_axis_clamped
+
+
+# ---amp load calcs ---
+#net  a-volts        hm2_7i98.0.7i77.0.0.analogin0      =>  axis_load_scale.a-axis-in
+#net  a-load                                            <=  axis_load_scale.a-load
+#setp                axis_load_scale.a-offset      12.1
+#setp                axis_load_scale.a-peak        6.78
+
+
+#*******************
+#  SPINDLE
+#*******************
+
+setp   pid.s.Pgain     [SPINDLE_0]P
+setp   pid.s.Igain     [SPINDLE_0]I
+setp   pid.s.Dgain     [SPINDLE_0]D
+setp   pid.s.bias      [SPINDLE_0]BIAS
+setp   pid.s.FF0       [SPINDLE_0]FF0
+setp   pid.s.FF1       [SPINDLE_0]FF1
+setp   pid.s.FF2       [SPINDLE_0]FF2
+setp   pid.s.deadband  [SPINDLE_0]DEADBAND
+setp   pid.s.error-previous-target true
+
+net spindle-index-enable    <=> pid.s.index-enable
+net spindle-enable          =>  pid.s.enable
+net spindle-vel-cmd-rpm     => pid.s.command
+net spindle-vel-fb-rpm      => pid.s.feedback
+net spindle-pid-out  pid.s.output    => gearchange.speed-pid-value
+net spindle-vel-cmd-rpm     => gearchange.speed-command
+
+setp    hm2_7i98.0.encoder.05.counter-mode 0
+setp    hm2_7i98.0.encoder.05.filter 0
+setp    hm2_7i98.0.encoder.05.index-invert 1
+setp    hm2_7i98.0.encoder.05.index-mask 0
+setp    hm2_7i98.0.encoder.05.index-mask-invert 0
+setp    hm2_7i98.0.encoder.05.scale  [SPINDLE_0]ENCODER_SCALE
+
+net spindle-revs-raw     <=  hm2_7i98.0.encoder.05.position
+net spindle-vel-fb-raw   <=  hm2_7i98.0.encoder.05.velocity
+net spindle-raw-counts   <=  hm2_7i98.0.encoder.05.rawcounts
+net spindle-index-raw    <=> hm2_7i98.0.encoder.05.index-enable
+
+# --- spindle RPM feedback calculations
+setp spindlescale.low-ratio      [SPINDLE_0]LOW_RATIO
+setp spindlescale.high-ratio     [SPINDLE_0]HIGH_RATIO
+net  spindle_in_low       =>  spindlescale.low-gear-switch
+net  spindle-vel-fb-raw   =>  spindlescale.vel-rps
+net  spindle-revs-raw     =>  spindlescale.position
+net  spindle-pos-valid    =>  spindlescale.spindle-valid
+net  spindle-index-raw    <=> spindlescale.motor-encoder-index
+net  spindle-index-enable <=> spindlescale.spindle-index
+net  spindle-vel-fb-rpm   <=  spindlescale.vel-rpm
+net  spindle-vel-fb-rps   <=  spindlescale.out-vel-rps
+net  spindle-revs         <=  spindlescale.out-position;
+
+net  spindle-vel-fb-rpm      => abs.spindle.in
+net  spindle-vel-fb-rpm-abs  <= abs.spindle.out
+
+# --- gear change setup
+setp gearchange.low-ratio  0.008939
+setp gearchange.high-ratio 0.001667
+setp gearchange.max-low    1100.0
+setp gearchange.shift-time 120.00
+setp gearchange.change-speed 0.30
+
+net spindle_in_low        =>  gearchange.switch-low
+net spindle_in_high       =>  gearchange.switch-high
+net spindle_low_gear      <=  gearchange.low-gear
+net spindle_high_gear     <=  gearchange.high-gear
+net spindle-enable        =>  gearchange.spindle-on
+net spindle-output        <=  gearchange.motor-speed
+net spindle-enable-delay  <=  gearchange.spindle-on-delay
+net spindle-in-gear       <=  gearchange.shift-done
+net spindle-index-enable  <=> gearchange.index-enable
+
+# ---Setup spindle at speed signals---
+
+setp near.s.scale         [SPINDLE_0]NEAR
+setp near.s.difference    [SPINDLE_0]DIFF
+net spindle-vel-cmd-rpm   => near.s.in1
+net spindle-vel-fb-rpm    => near.s.in2
+net spindle-near-speed    <= near.s.out
+
+net spindle-in-gear       => and.s.in0
+net spindle-near-speed    => and.s.in1
+net spindle-at-speed      <= and.s.out
+
+# --- orientation setup
+setp orientfilter.default-value         4.0
+setp orientfilter.offset                -11.5
+setp orientfilter.homeval               0.0
+setp orientfilter.errorval              0.2
+setp orientfilter.slowstepdiv           15
+setp orientfilter.steps-per-rev-high    1792
+setp orientfilter.steps-per-rev-low     1924
+setp orientfilter.in-pos-error-mult     4
+setp orientfilter.maxerrorcount         4
+setp orientfilter.timeout               120
+setp orientfilter.maxOrientRPM          10
+setp orientfilter.static-tool-number    90
+
+net spindle-pos-sensor      hm2_7i98.0.7i84.1.0.analogin0 => orientfilter.pos-sensor
+net spindle-pos-valid       hm2_7i98.0.7i84.1.0.input-01  => orientfilter.pos-valid
+net spindle-clr              <= orientfilter.drive-clr
+net spindle-stat             <= orientfilter.drive-stat
+net spindle-step             <= orientfilter.drive-step
+net spindle-dir              <= orientfilter.drive-dir
+net spindle-drive-in-pos    hm2_7i98.0.7i77.0.0.input-08
+
+net spindle-orient          =>  orientfilter.orient-enable
+net spindle-orient-angle    =>  orientfilter.spindle-angle
+net spindle-vel-fb-rpm-abs  =>  orientfilter.spindle-rpm
+net toolchange-reorient     =>  orientfilter.toolchange-reorient
+net start_orient_pin        =>  orientfilter.toolchange-orient-enable
+net spindle-enable-delay    =>  orientfilter.spindle-enable
+net tool-current-number     =>  orientfilter.tool-number
+net spindle-orient-fault    <=  orientfilter.orient-error
+
+# --- Modbus control signals
+net spindle-pulseMode       <=  orientfilter.pulseMode
+net spindle-pulseGear1      <=  orientfilter.gearRatio1
+net spindle-pulseGear2      <=  orientfilter.gearRatio2
+net spindle-pulseModeOut    =>  orientfilter.pulseModeFB
+
+net spindle_in_low          =>  orientfilter.low-gear
+
+net spindle-is-oriented     <=  orientfilter.orient-done
+net spindle-drive-enable    <=  orientfilter.drive-enable
+net spindle-is-in-position  <=  orientfilter.in-position
+
+# --- manual tool clamp ---
+net tool_unclamp            <= toolclamp.tool-clamp
+net manual-mode             => toolclamp.manual-mode
+net spindle-drive-enable    => toolclamp.spindle-enable
+net tool_clamp_button       => toolclamp.manual-clamp
+net tool_unclamp_button     => toolclamp.manual-unclamp
+
+# ---PWM Generator signals/setup---
+
+setp   hm2_7i98.0.7i77.0.1.analogout5-scalemax  [SPINDLE_0]OUTPUT_SCALE
+setp   hm2_7i98.0.7i77.0.1.analogout5-minlim    [SPINDLE_0]OUTPUT_MIN_LIMIT
+setp   hm2_7i98.0.7i77.0.1.analogout5-maxlim    [SPINDLE_0]OUTPUT_MAX_LIMIT
+
+net spindle-output          => hm2_7i98.0.7i77.0.1.analogout5
+#not techincally requried as we are not using this enable output
+net spindle-drive-enable    => hm2_7i98.0.7i77.0.1.spinena
+
+# start pulse to clear faults and enable the drive
+setp spindle_start_pulse.width  0.5
+net machine-is-enabled      => spindle_start_pulse.in
+net spindle-reset           <= spindle_start_pulse.out
+
+# ---setup spindle control signals---
+
+net spindle-vel-cmd-rps        <=  spindle.0.speed-out-rps
+net spindle-vel-cmd-rps-abs    <=  spindle.0.speed-out-rps-abs
+net spindle-vel-cmd-rpm        <=  spindle.0.speed-out
+net spindle-vel-cmd-rpm-abs    <=  spindle.0.speed-out-abs
+net spindle-enable             <=  spindle.0.on
+net spindle-cw                 <=  spindle.0.forward
+net spindle-ccw                <=  spindle.0.reverse
+net spindle-brake              <=  spindle.0.brake
+net spindle-revs               =>  spindle.0.revs
+net spindle-at-speed           =>  spindle.0.at-speed
+net spindle-vel-fb-rps         =>  spindle.0.speed-in
+net spindle-index-enable      <=>  spindle.0.index-enable
+net spindle-orient             <=  spindle.0.orient
+net spindle-orient-angle       <=  spindle.0.orient-angle
+net spindle-orient-mode        <=  spindle.0.orient-mode
+net spindle-is-oriented        =>  spindle.0.is-oriented
+net spindle-orient-fault       =>  spindle.0.orient-fault
+
+
+#******************************
+# tool changer setup
+#******************************
+setp toolchange.statetimeout   140
+
+net tool-change-request        <= iocontrol.0.tool-change
+net tool-change-confirmed      => iocontrol.0.tool-changed 
+net tool-prep-number           <= iocontrol.0.tool-prep-number
+net tool-prepare-request       <= iocontrol.0.tool-prepare      
+net tool-prepare-complete      => iocontrol.0.tool-prepared
+net tool-current-number        <= iocontrol.0.tool-number
+net tool-prepare-pocket        <= iocontrol.0.tool-prep-pocket
+
+net tool-change-request        => toolchange.tool-change
+net tool-change-confirmed      <= toolchange.tool-changed
+net tool-prepare-pocket        => toolchange.tool-prep-pocket
+net tool-prepare-request       => toolchange.tool-prepare
+net tool-prepare-complete      <= toolchange.tool-prepared
+net tool-prep-number           => toolchange.tool-prep-number
+net tool-current-number        => toolchange.tool-number
+net tool-reset-error           => toolchange.tool-changer-reset-error
+
+net toolchange-reorient        <= toolchange.spindle-reorient
+net spindle-is-oriented        => toolchange.spindle-is-oriented
+net spindle-is-in-position     => toolchange.spindle-is-in-position
+
+net carousel-enable            <= toolchange.carousel-enable
+net carousel-ready             => toolchange.carousel-ready
+net carousel-active            => toolchange.carousel-active
+net carousel-pocket-number     <= toolchange.carousel-pocket-number
+net carousel-position          => toolchange.carousel-position
+net manual-carousel            => toolchange.button-manual-index
+net carousel-manual-index      <= toolchange.carousel-manual-index
+
+net dbg_carohome               => toolchange.set-slide-carohome
+net dbg_extend                 => toolchange.set-extend
+net dbg_retract                => toolchange.set-retract
+net dgb_rotate_ccw             => toolchange.set-rot-ccw
+net dbg_rotate_cw              => toolchange.set-rot-cw
+net dbg_slide_carousel         => toolchange.set-slide-carousel
+net dbg_slide_spindle          => toolchange.set-slide-spindle
+net dbg_spinhome               => toolchange.set-slide-spinhome
+net dbg_swing_down             => toolchange.set-swing-spindle
+net dbg_swing_up               => toolchange.set-swing-carousel
+
+net carousel-enable           => carousel2.0.enable
+net carousel-pocket-number    => carousel2.0.pocket-number
+net carousel-ready            <= carousel2.0.ready
+net carousel-active           <= carousel2.0.active
+net carousel-position         <= carousel2.0.current-position
+net carousel-pa               <= hm2_7i98.0.7i84.1.1.input-11-not
+net carousel-pb               <= hm2_7i98.0.7i84.1.1.input-12-not
+net manual-carousel           <= hm2_7i98.0.7i84.1.1.input-10-not
+net carousel-pa               => carouselindex.pa
+net carousel-pb               => carouselindex.pb
+net carousel-index            <= carouselindex.index
+net carousel-index            => carousel2.0.sense-0
+net carousel-pulse            <= carouselindex.pulse
+net carousel-pulse            => carousel2.0.sense-1
+
+net carousel-manual-index     => carousel2.0.jog-fwd
+net motor-carousel            hm2_7i98.0.7i84.1.1.output-00 <= carousel2.0.motor-fwd
+
+net tc-sense-carousel-in-pos  toolchange.sens-carousel-in-pos <= hm2_7i98.0.7i84.1.1.input-00-not
+net tc-sense-rot-cw           toolchange.sens-rot-cw         <= hm2_7i98.0.7i84.1.1.input-01-not
+net tc-sense-rot-ccw          toolchange.sens-rot-ccw        <= hm2_7i98.0.7i84.1.1.input-02-not
+net tc-sense-extend           toolchange.sens-extend         <= hm2_7i98.0.7i84.1.1.input-03-not
+net tc-sense-retract          toolchange.sens-retract        <= hm2_7i98.0.7i84.1.1.input-04-not
+net tc-sense-swing-spindle    toolchange.sens-swing-spindle  <= hm2_7i98.0.7i84.1.1.input-05-not
+net tc-sense-swing-carousel   toolchange.sens-swing-carousel <= hm2_7i98.0.7i84.1.1.input-06-not
+net tc-sense-slide-home       toolchange.sens-slide-home     <= hm2_7i98.0.7i84.1.1.input-07-not
+net tc-sense-slide-spindle    toolchange.sens-slide-spindle  <= hm2_7i98.0.7i84.1.1.input-08-not
+net tc-sense-slide-carousel   toolchange.sens-slide-carousel <= hm2_7i98.0.7i84.1.1.input-09-not
+net tool_clamped           => toolchange.sens-tool-clamp;
+net tool_unclamped         => toolchange.sens-tool-unclamp;
+
+net tc-sol-rot-cw             toolchange.sol-rot-cw          => hm2_7i98.0.7i84.1.1.output-01
+net tc-sol-rot-ccw            toolchange.sol-rot-ccw         => hm2_7i98.0.7i84.1.1.output-02
+net tc-sol-extend             toolchange.sol-extend          => hm2_7i98.0.7i84.1.1.output-03
+net tc-sol-retract            toolchange.sol-retract         => hm2_7i98.0.7i84.1.1.output-04
+net tc-sol-swing-spindle      toolchange.sol-swing-spindle   => hm2_7i98.0.7i84.1.1.output-05
+net tc-sol-swing-carousel     toolchange.sol-swing-carousel  => hm2_7i98.0.7i84.1.1.output-06
+net tc-sol-slide-spindle      toolchange.sol-slide-spindle   => hm2_7i98.0.7i84.1.1.output-07
+net tc-sol-slide-spinhome     toolchange.sol-slide-spinhome  => hm2_7i98.0.7i84.1.1.output-08
+net tc-sol-slide-carousel     toolchange.sol-slide-carousel  => hm2_7i98.0.7i84.1.1.output-09
+net tc-sol-slide-carohome     toolchange.sol-slide-carohome  => hm2_7i98.0.7i84.1.1.output-10
+net tc-led-rotate-enable      toolchange.led-rotate-enable   => hm2_7i98.0.7i84.1.1.output-12
+net tc-auto-unclamp           toolchange.sol-tool-unclamp    => toolclamp.auto-unclamp
+net spindle_purge          <= toolchange.sol-air-blow;
+
+
+#******************************
+# connect miscellaneous signals
+#******************************
+
+#  ---HALUI signals---
+
+#net axis-select-x  halui.axis.x.select
+#net jog-x-pos      halui.axis.x.plus
+#net jog-x-neg      halui.axis.x.minus
+#net jog-x-analog   halui.axis.x.analog
+#net x-is-homed     halui.joint.0.is-homed
+#net axis-select-y  halui.axis.y.select
+#net jog-y-pos      halui.axis.y.plus
+#net jog-y-neg      halui.axis.y.minus
+#net jog-y-analog   halui.axis.y.analog
+#net y-is-homed     halui.joint.1.is-homed
+#net axis-select-z  halui.axis.z.select
+#net jog-z-pos      halui.axis.z.plus
+#net jog-z-neg      halui.axis.z.minus
+#net jog-z-analog   halui.axis.z.analog
+#net z-is-homed     halui.joint.2.is-homed
+#net jog-selected-pos      halui.axis.selected.plus
+#net jog-selected-neg      halui.axis.selected.minus
+#net spindle-manual-cw     halui.spindle.0.forward
+#net spindle-manual-ccw    halui.spindle.0.reverse
+#net spindle-manual-stop   halui.spindle.0.stop
+net hal-machine-is-on         halui.machine.is-on
+#net jog-speed             halui.axis.jog-speed
+#net MDI-mode              halui.mode.is-mdi
+net manual-mode           halui.mode.is-manual
+
+#  ---coolant signals---
+
+net coolant-mist      <=  iocontrol.0.coolant-mist
+net coolant-flood     <=  iocontrol.0.coolant-flood
+
+#  ---probe signals---
+
+#built in probe system
+net vk45-probe-in                                     =>  probe_selector.spindle-probe-in
+net spindle-vel-cmd-rpm-abs                           =>  probe_sensitivity.spindle-rpm
+net probe_sens                                        <=  probe_sensitivity.lower-sensitivity
+setp   probe_sensitivity.min-spindle-rpm  50
+
+#renishaw probe system
+net renishaw-error  hm2_7i98.0.7i77.0.0.input-17-not  =>  probe_selector.renishaw-error
+net renishaw-lowbat hm2_7i98.0.7i77.0.0.input-16      =>  probe_selector.renishaw-lowbat
+net renishaw-in     hm2_7i98.0.7i77.0.0.input-18      =>  probe_selector.renishaw-probe-in
+net renishaw-en0                                      <=  probe_selector.enable-0
+net renishaw-en1                                      <=  probe_selector.enable-1
+
+net probe_error_pin                       <=  probe_selector.error
+net probe_lowbat_pin                      <=  probe_selector.lowbat
+net tool-current-number                   =>  probe_selector.tool-number
+setp probe_selector.renishaw-tool-number     [PROBE_SWITCHER]PROBE_TOOLNUM
+setp probe_selector.glitch-filter-time       [PROBE_SWITCHER]GLITCH_FILTER_TIME
+net probe_enable_pin                      =>  probe_selector.enable-in
+net probe_sel_pin                         =>  probe_selector.select-tool-probe-in
+net probe-in        probe_selector.out    =>  motion.probe-input
+
+
+#  ---motion control signals---
+
+net in-position               <=  motion.in-position
+net machine-is-enabled        <=  motion.motion-enabled
+
+# pin number defined in the PROBE_SWITCHER section of the ini file
+net probe_sel_pin             <=  motion.digital-out-[PROBE_SWITCHER]PROBE_SEL_PIN
+net probe_enable_pin          <=  motion.digital-out-[PROBE_SWITCHER]PROBE_ENABLE_PIN
+net probe_error_pin           =>  motion.digital-in-[PROBE_SWITCHER]PROBE_ERROR_PIN
+net probe_lowbat_pin          =>  motion.digital-in-[PROBE_SWITCHER]PROBE_LOWBAT_PIN
+
+# pin number is defined in the TOOLCHANGER section of the ini file
+net start_orient_pin          <=  motion.digital-out-[TOOLCHANGER]START_ORIENT_PIN
+
+#  ---estop signals---
+
+# now just using the external estop button
+net estop-out     <=  iocontrol.0.user-enable-out
+
+net estop-ext-plc  => iocontrol.0.emc-enable-in
+
+

@@ -1,0 +1,135 @@
+; probe auto calibration using a ring, pin, or sphere gauge
+o<_pm_cal_probe_xy> sub
+
+    ;required params
+    #<feature_dia> =    #1
+    ; 0 - ring gauge, 1 - pin gauge, 2 - sphere gauge
+    #<mode> =           #2
+    ;physical probe tip diameter
+    ; used for calculation and also the search start backoff
+    #<probe_diameter> = #3
+    #<zheight> =        #4
+    #<clearance> =      #5
+
+    #<startx> = #<_x>
+    #<starty> = #<_y>
+    #<startz> = #<_z>
+    
+    o10 if [#<_pmm_error_status> NE 0]
+        o<_pm_cal_probe_xy> return [-1]
+    o10 endif
+    
+    o100 if [#<mode> EQ 2]
+        ;probe the top of the sphere in sphere mode
+        o<_pm_probe> call [#<_pmm_search_distance>] [#<_pmm_backoff_distance>] [0] [90] [1]
+        #<zheight> = [#[#<_pma_zpos>] - [#<feature_dia> / 2 + #<probe_diameter> / 2]]
+        #<zdown> = 1
+        #<direction> = 1
+    o100 elseif [#<mode> EQ 0]
+        #<zheight> = 0
+        #<zdown> = 0
+        #<direction> = -1
+    o100 else
+		o101 if [#<_incremental>]
+			(msg, Warning, incremental mode on, Z value is relative)
+			#<zheight> = [#<startz> + #<zheight>]
+		o101 endif
+		o103 if [[#<startz> - #<zheight>] LT [#<probe_diameter> / 2]]
+			#<_pmm_error_status> = -111
+			o<_pm_cal_probe_xy> return [-1]
+		o103 endif
+        #<zdown> = 1
+        #<direction> = 1
+    o100 endif
+    o104 if [#<_ini[PROBE_MACRO]HAS_SPINDLE_ORIENT> GT 0]
+        #<orient> = 1
+        #<recenter> = 1
+    o104 else
+        #<orient> = 0
+        #<recenter> = 0
+    o104 endif
+    
+    ;only needed if we can do spindle alignment, otherwise the probe must be pre-centered on the standard    
+    o110 if [#<orient> EQ 1]
+        ;rough center finding, just to make sure we don't have high tangent errors
+        o<_pm_probe_xy> call [#<feature_dia>] [#<feature_dia>] [#<direction>] [#<zheight>] [#<zdown>] [#<recenter>] [0] [#<orient>] [1] [#<clearance>]
+        
+        o112 if [#<mode> EQ 2]
+            ; re probe the top of the sphere so we get an accurate height
+            #<initialz> = #<_z>
+
+            o<_pm_probe> call [#<_pmm_search_distance>] [#<_pmm_backoff_distance>] [0] [90] [1]
+
+            #<zheight> = [#[#<_pma_zpos>] - #<feature_dia> / 2 - #<probe_diameter> / 2]
+        o112 endif
+    o110 endif
+    
+        
+    ;fine center finding
+    o<_pm_probe_xy> call [#<feature_dia>] [#<feature_dia>] [#<direction>] [#<zheight>] [#<zdown>] [#<recenter>] [0] [0] [1] [#<clearance>]
+    
+    #<xp> = #[#<_pma_xpos>]
+    #<xn> = #[#<_pma_start_xpos>]
+    #<yp> = #[#<_pma_ypos>]
+    #<yn> = #[#<_pma_start_ypos>]
+    
+    ; spindle orient is required for this function
+    o120 if [#<orient> EQ 1]
+        ;180 deg to cancel probe offsets
+        o<_pm_probe_xy> call [#<feature_dia>] [#<feature_dia>] [#<direction>] [#<zheight>] [#<zdown>] [0] [180] [1] [1] [#<clearance>]
+
+        o<121> if [#<_pmm_error_status> NE 0]
+            o<_pm_cal_probe_xy> return [-1]
+        o<121> endif
+
+        ;reset the spindle orientation
+        M19 R0 Q[#<_ini[PROBE_MACRO]SPINDLE_ORIENT_TIME>]
+
+        #<xpr> = #[#<_pma_xpos>]
+        #<xnr> = #[#<_pma_start_xpos>]
+        #<ypr> = #[#<_pma_ypos>]
+        #<ynr> = #[#<_pma_start_ypos>]
+
+        ;calculate center point, removed probe offsets
+        #<xc> = [[[#<xp> + #<xpr>] / 2 + [#<xn> + #<xnr>] / 2] / 2]
+        #<yc> = [[[#<yp> + #<ypr>] / 2 + [#<yn> + #<ynr>] / 2] / 2]
+            
+        ;calculate the probe center offset
+        #<xoff> = [[[#<xp> - #<xpr>] + [#<xn> - #<xnr>]] / 4]
+        #<yoff> = [[[#<yp> - #<ypr>] + [#<yn> - #<ynr>]] / 4]
+
+        ; go to the accurate center for further work
+        G90 G1 X[#<xc>] Y[#<yc>] F[#<_pmm_rapid_feedrate>]
+
+        ;probe diameters - average the two probe values
+        #<xrad> = [ABS[#<feature_dia> - [[#<xp> - #<xn>] + [#<xpr> - #<xnr>]] / 2] / 2]
+        #<yrad> = [ABS[#<feature_dia> - [[#<yp> - #<yn>] + [#<ypr> - #<ynr>]] / 2] / 2]
+
+        
+    o120 else
+        o<122> if [#<_pmm_error_status> NE 0]
+            o<_pm_cal_probe_xy> return [-1]
+        o<122> endif
+
+        #<xc> = [[#<xp> + #<xn>] / 2]
+        #<yc> = [[#<yp> + #<yn>] / 2]
+            
+        ;calculate the probe center offset
+        ;#<xoff> = [[[#<xp> - #<_x> + #<feature_dia> / 2] + [#<xn> - #<_x> - #<feature_dia> / 2]] / 4]
+        ;#<yoff> = [[[#<yp> - #<_y> + #<feature_dia> / 2] + [#<yn> - #<_y> - #<feature_dia> / 2]] / 4]
+        #<xoff> = [#<xc> - #<startx>]
+        #<yoff> = [#<yc> - #<starty>]
+
+        ;probe diameters
+        #<xrad> = [ABS[[#<feature_dia> - [#<xp> - #<xn>]] / 2]]
+        #<yrad> = [ABS[[#<feature_dia> - [#<yp> - #<yn>]] / 2]]
+        
+    o120 endif
+
+    ; return cal values
+    #[#<_pma_xpos>] = #<xrad>
+    #[#<_pma_ypos>] = #<yrad>
+    #[#<_pma_xerr>] = #<xoff>
+    #[#<_pma_yerr>] = #<yoff>
+
+o<_pm_cal_probe_xy> endsub [0]

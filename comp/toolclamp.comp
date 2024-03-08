@@ -1,0 +1,31 @@
+component toolclamp "used to enable the tool clamp pushbuttons when in manual mode";
+pin in bit spindle-enable;
+pin in bit manual-mode;
+pin in bit manual-unclamp;
+pin in bit manual-clamp;
+pin in bit auto-unclamp;
+pin out bit tool-clamp;
+
+variable int clampstate = 0;
+
+author "alex lait";
+license "GPL";
+function _;
+
+;;
+
+FUNCTION(_){
+
+	if (!spindle_enable && manual_mode) {
+		if (manual_unclamp) {
+			clampstate = 1;
+		} else if (manual_clamp) {
+			clampstate = 0;
+		}
+	} else if (!manual_mode) {
+		clampstate = 0;
+	}
+
+	tool_clamp = auto_unclamp | clampstate;
+
+}

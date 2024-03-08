@@ -1,0 +1,185 @@
+o<_pm_5point_probe> sub
+
+	#<sx> = #1
+	#<sy> = #2
+	#<mode> = #3
+	#<width> = #4
+	#<height> = #5
+	#<pointnum> = #6
+	#<clearance> = #7
+	#<zdown> = #8
+	#<zlevel> = #9
+	
+	#<mode> = [#<mode> - 10]
+	
+	; find the lower left corner, everything is relative to that
+	#<cleft>   = [#<sx> - #<width> / 2]
+	#<cbottom> = [#<sy> - #<height> / 2]
+	
+	; probe point offsets
+	o130 if [#<_pv_got_k>]
+		#<xmask> = 0
+		#<xval> = [[#<_pv_k> * #<_pmm_scale>] / #<width>]
+	o130 else
+		#<xmask> = 1
+		#<xval> = 0
+	o130 endif
+	
+	o140 if [#<_pv_got_d>]
+		#<dmask> = 0
+		o145 if [[#<mode> eq 2] or [#<mode> eq 4]]
+			#<dval> = [#<_pv_d> / #<width>]
+		o145 else
+			#<dval> = [#<_pv_d> / #<height>]
+		o145 endif
+	o140 else
+		#<dmask> = 1
+		#<dval> = 0
+	o140 endif
+		
+	o150 if [#<_pv_got_e>]
+		#<ymask> = 0
+		#<yval> = [#<_pv_e> / #<height>]
+	o150 else
+		#<ymask> = 1
+		#<yval> = 0
+	o150 endif
+	
+	o160 if [[#<xmask> eq 0] and [#<dmask> eq 0]]
+		#<dxval> = [#<dval> + #<xval>]
+	o160 elseif [#<xmask> and [#<dmask> eq 0]]
+		#<dxval> = [0.25 + #<dval>]
+	o160 else
+		#<dxval> = 0
+	o160 endif
+
+	o170 if [[#<ymask> eq 0] and [#<dmask> eq 0]]
+		#<dyval> = [#<dval> + #<yval>]
+	o170 elseif [#<ymask> and [#<dmask> eq 0]]
+		#<dyval> = [0.25 + #<dval>]
+	o170 else
+		#<dyval> = 0
+	o170 endif	
+	
+	(print, dval: #<dval>, dxval: #<dxval>, dyval: #<dyval>)
+	
+	o200 if [#<pointnum> eq 1]
+		#<probedir> = 1
+		#<ppx> = 1
+		o210 if [#<mode> eq 1]
+			#<ppy> = [0.25 * #<ymask> + #<yval>]
+		o210 else
+			#<ppy> = [0.50 * #<ymask> + #<yval>]
+		o210 endif
+	o200 elseif [#<pointnum> eq 2]
+		o220 if [#<mode> eq 1]
+			#<probedir> = 1
+			#<ppx> = 1
+			#<ppy> = [0.75 * #<dmask> + #<dyval>]
+		o220 elseif [#<mode> eq 2]
+			#<ppx> = [0.75 * #<dmask> + #<dxval>]
+			#<probedir> = 3
+			#<ppy> = 1
+		o220 else
+			#<ppx> = [0.50 * #<xmask> + #<xval>]
+			#<probedir> = 3
+			#<ppy> = 1	
+		o220 endif
+	o200 elseif [#<pointnum> eq 3]
+		o230 if [#<mode> eq 1]
+			#<ppx> = [0.50 * #<xmask> + #<xval>]
+			#<probedir> = 3
+			#<ppy> = 1
+		o230 elseif [#<mode> eq 2]
+			#<ppx> = [0.25 * #<xmask> + #<xval>]
+			#<probedir> = 3
+			#<ppy> = 1
+		o230 elseif [#<mode> eq 3]
+			#<probedir> = 2
+			#<ppx> = 0
+			#<ppy> = [0.75 * #<dmask> + #<dyval>]
+		o230 else
+			#<probedir> = 2
+			#<ppx> = 0
+			#<ppy> = [0.50 * #<ymask> + #<yval>]
+		o230 endif
+	o200 elseif [#<pointnum> eq 4]
+		o240 if [#<mode> eq 3]
+			#<probedir> = 2
+			#<ppx> = 0
+			#<ppy> = [0.25 * #<ymask> + #<yval>]
+		o240 elseif [#<mode> eq 4]
+			#<ppx> = [0.25 * #<xmask> + #<xval>]
+			#<probedir> = 4
+			#<ppy> = 0
+		o240 else
+			#<probedir> = 2
+			#<ppx> = 0
+			#<ppy> = [0.50 * #<ymask> + #<yval>]
+		o240 endif
+	o200 else
+		o250 if [#<mode> eq 4]
+			#<ppx> = [0.75 * #<dmask> + #<dxval>]
+			#<probedir> = 4
+			#<ppy> = 0
+		o250 else
+			#<ppx> = [0.50 * #<xmask> + #<xval>]
+			#<probedir> = 4
+			#<ppy> = 0
+		o250 endif
+	o200 endif
+			
+	o350 if [#<zdown>]
+		#<clearance> = #<clearance>
+	o350 else
+		#<clearance> = [-#<clearance>]
+	o350 endif
+	
+	o400 if [#<probedir> eq 2]
+		;#<ppx> eq 0
+		;left side point, probe left
+		#<probestartx> = [-#<width> / 2 - #<clearance>]
+		#<probestarty> = [#<height> * #<ppy> - #<height> / 2]
+		#<probedir> = 180
+	o400 elseif [#<probedir> eq 1]
+		;#<ppx> eq 1
+		;right side point, probe right
+		#<probestartx> = [#<width> / 2 + #<clearance>]
+		#<probestarty> = [#<height> * #<ppy> - #<height> / 2]		
+		#<probedir> = 0
+	o400 elseif [#<probedir> eq 4] 
+		;ppy eq 0
+		;bottom side, probe down
+		#<probestartx> = [#<width> * #<ppx> - #<width> / 2]
+		#<probestarty> = [-#<height> / 2 - #<clearance>]	
+		#<probedir> = 270
+	o400 else
+		;ppy eq 1, top side, probe up
+		#<probestartx> = [#<width> * #<ppx> - #<width> / 2]
+		#<probestarty> = [#<height> / 2 + #<clearance>]
+		#<probedir> = 90
+	o400 endif
+
+	#<probestartx> = [#<probestartx> + #<sx>]
+	#<probestarty> = [#<probestarty> + #<sy>]
+	
+	#<rapidfeed> = #<_ini[PROBE_MACRO]RAPID_VELOCITY>
+	
+	#<sz> = #<_z>
+	
+	G90 G1 X[#<probestartx>] Y[#<probestarty>] F[#<rapidfeed>]
+	o410 if [#<zdown>]
+		#<probedir> = [#<probedir> - 180]
+		G1 Z[#<zlevel>]
+	o410 endif
+
+	o<_pm_probe> call [#<_pv_search_dist>] [#<_pmm_backoff_distance>] [#<probedir>] [0] [0] [#<clearance>]
+	
+	o<_pm_check_error> call [9824.1]
+	
+	o420 if [#<zdown>]
+		G90 G1 Z[#<sz>]
+	o420 endif
+
+o<_pm_5point_probe> endsub [0]
+M2

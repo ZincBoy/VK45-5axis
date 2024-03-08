@@ -1,0 +1,8 @@
+o<9853> sub
+
+    ; tool setter probe off
+
+    o<_pm_probe_power> call [0]
+
+o<9853> endsub
+M2

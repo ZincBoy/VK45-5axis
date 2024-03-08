@@ -1,0 +1,27 @@
+o<9856> sub
+; Manual Rotating tool length and diameter setting
+;   j [b] - 1 = length [default], 2 = diameter only, 3 = length and diameter
+;   d     - Reference tool diameter, + for right, - for left
+;   k     - experience value for length
+;     [e] - tool radius offset number - not used
+;   r     - diameter overtravel distance
+;     [t] - tool offset number, we will only use the active tool
+;   q     - probe z overtravel 4mm default
+;   z     - position for diameter measurement - defaults to the z overtravel distance
+;   i     - size adjustment 0.01 sets the radius small by 0.01 of the probed value
+
+	; turn on the probe
+	o<9852> call [#1]
+
+    o<_pm_check_probe_state> call [1]
+
+	o<_pm_ts_parse_words> call
+
+    ; manual mode
+    o<_pm_ts_toolprobe> call [#1] [0] [0]
+
+	;turn off the probe
+	o<9853> call
+
+o<9856> endsub [0]
+M2

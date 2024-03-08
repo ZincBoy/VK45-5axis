@@ -1,0 +1,97 @@
+o<9812> sub
+
+    ;web and pocket measurement
+	;  implemented
+	;  |  renishaw standard
+	;  |  |
+	;  X  X  nominal size only one of x or y
+	;  Y  Y  nominal size only one of x or y
+	;  Z  Z  absolute measurement level, if not present a pocket cycle is assumed
+	;  e  h  +/- tolerance value for dimension
+	;  q  q  probe overtravel (past target point)
+	;  r  r  clearance for internal and external features, if negative it forces an interal boss
+	;  |  |
+	;  |  | Values set with extended g65 p9000 pre call
+	;  e  e  Experience value - tool offset containing correction factor
+	;  k  f  pecent of error to use to update tool offset
+	;  q  s  number of work offset to be updated
+	;  d  m  true position error allowance
+	;  r  t  tool number to update offset
+	;  i  u  upper tolerance for tool offset update, alarm if over this value
+	;  j  v  null band, no tool offset update is done if the error is in this band
+	;     w  print the output data NOT IMPLEMENTED   
+	
+	#<foundx> = 0
+    #<foundy> = 0
+    #<foundz> = 0
+    #<zdown> = 0
+    #<x> = #<_pv_x>
+    #<y> = #<_pv_y>
+    #<z> = #<_pv_z>
+    
+    o100 if [#<_pv_got_x> AND #<_pv_got_y>]
+        (abort, only X OR Y word is allowed in P9812)
+    o100 elseif [#<_pv_got_x>]
+        #<foundx> = 1
+        #<x> = [ABS[#<x>]]
+        #<y> = 0
+    o100 elseif [#<_pv_got_y>]
+        #<foundy> = 1
+        #<x> = 0
+        #<y> = [ABS[#<y>]]
+    o100 else
+        (abort, Need one of X or Y words in P9812)
+    o100 endif
+	
+    o110 if [[#<_pv_got_z>] or [#<_pv_clearance> LT 0]]
+        #<zdown> = 1
+		o115 if [#<_incremental>]
+			(msg, Warning, incremental mode on, Z value is relative)
+			#<zheight> = [#<_z> + #<_pv_z>]
+		o115 else
+			#<zheight> = #<_pv_z>
+		o115 endif
+    o110 else
+        #<zheight> = 0
+    o110 endif
+    o120 if [[#<zheight> EQ 0] OR [#<_pv_clearance> LT 0]]
+        ;inside pocket
+        #<direction> = -1
+    o120 else
+        ;outside pocket
+        #<direction> = 1
+    o120 endif
+    
+    #<startx> = #<_x>
+    #<starty> = #<_y>
+    ;only xy probe cal required
+    o<_pm_cal_check> call [0]
+    
+    ;probe must be on
+    o<_pm_check_probe_state> call [0]
+    ;now actual probe
+    o<_pm_probe_xy> call [#<x>] [#<y>] [#<direction>] [#<zheight>] [#<zdown>] [0] [0] [0] [0] [#<_pv_clearance>]
+    ; calculate the length
+    o200 if [#<foundx>]
+        #<length> = [ABS[#[#<_pma_xpos>] - #[#<_pma_start_xpos>]]]
+    o200 else
+        #<length> = [ABS[#[#<_pma_ypos>] - #[#<_pma_start_ypos>]]]
+    o200 endif
+    #[#<_pma_size>] = #<length>
+	#<xpos> = [[#[#<_pma_xpos>] + #[#<_pma_start_xpos>]] / 2]
+    #[#<_pma_xpos>] = #<xpos>
+	#<ypos> = [[#[#<_pma_ypos>] + #[#<_pma_start_ypos>]] / 2]
+    #[#<_pma_ypos>] = #<ypos>
+	
+	(print, G65 P9812)
+	(print, ____size: #<length>)
+	(print, ____xpos: #<xpos>)
+	(print, ____ypos: #<ypos>)
+
+    o<_pm_check_tolerance> call [1] [#<x>] [#<y>] [0] [#<startx>] [#<starty>] [0] [#<_pv_dimtol>] [#<_pv_tpe_tol>]
+
+    o<_pm_set_workoffset> call [#<_pv_set_offset>] [#<_pv_offset_num>] [#<foundx>] [#<foundy>] [0] [#[#<_pma_xerr>]] [#[#<_pma_yerr>]] [0]
+    o<_pm_set_tooloffset> call [#<_pv_set_tool>] [#<_pv_tool_num>] [0] [0] [0] [1] [0]
+
+o<9812> endsub [0]
+M2

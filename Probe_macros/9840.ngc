@@ -1,0 +1,24 @@
+o<9840> sub
+    
+    ; renikey extended functions for RQI
+    ; This is not a standard Renishaw macro
+    ; i = probe number:1-4,k:1=aquire channel, 2=clear channel, 3=clear all channels
+    
+    o<_pm_check_probe_state> call [0]
+    
+    o100 if [#<_ini[PROBE_MACRO]ENABLE_RENIKEY_EXTENSION> EQ 1]
+        o200 if [#<_pv_got_i> AND #<_pv_got_k> AND [#<_pmm_error_status> EQ 0]]
+            o300 if [[#<_pv_i> GE 1] and [#<_pv_i> LE 4] and [#<_pv_k> GE 1] and [#<_pv_k> LE 3]]
+                o<_pm_renikey> call [#<_pv_i>] [#<_pv_k>]
+            o300 else
+                (abort, G65 P9840 I or K word out of range, I=#<_pv_i> K=#<_pv_k>)
+            o300 endif
+        o200 else
+            (abort, G65 P9840 requires I and K words)
+        o200 endif
+    o100 else
+        (abort, G65 P9840 Renikey macro called when not enabled in INI file)
+    o100 endif
+        
+o<9840> endsub
+M2

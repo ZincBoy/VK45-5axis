@@ -1,0 +1,32 @@
+o<9855> sub
+; tool setter calibration
+;   j [b] - 1 = length [default], 2 = diameter only, 3 = length and diameter, 4 = length, diameter, and position
+;   d     - Reference tool diameter, + for right, - for left
+;   r     - overtravel distance
+;     [t] - tool offset number, we will only use the active tool
+;   q     - probe overtravel 4mm default
+;   z     - position for diameter measurement - for non-square edges
+
+	;do not turn on probe automatically as we want manual control to do the cal.
+
+    o<_pm_check_probe_state> call [1]
+
+	o<_pm_ts_parse_words> call
+
+	o<_pm_ts_auto_move> call
+	o100 if [#<_value>]
+		#<automode> = 0
+	o100 else
+		#<automode> = 1
+	o100 endif
+
+    o<_pm_ts_toolprobe> call [#1] [#<automode>] [1]
+	    
+	o<_pm_check_error> call [#1]
+		
+    o200 if [#<automode>]
+        G53 G0 Z[#<_ini[PROBE_MACRO]Z_SAFE_TRAVEL_OFFSET>]
+    o200 endif
+
+o<9855> endsub [0]
+M2

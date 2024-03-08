@@ -1,0 +1,29 @@
+; M61 override for VK45 mill.
+
+o<settool_override> sub
+
+;(debug, in change tool_in_spindle=#<tool_in_spindle> current_pocket=#<current_pocket>)
+;(debug, selected_tool=#<selected_tool> selected_pocket=#<selected_pocket>)
+
+; We must execute this only in the milltask interpreter
+; or preview will break, so test for '#<_task>' which is 1 for
+; the milltask interpreter and 0 in the UI's
+O100 if [#<_task> EQ 0]
+    O100 return [999]
+O100 endif
+
+M61 Q#<tool>
+
+;force a tooltable write/reload
+G10 L1 P#<tool> X0
+
+;run the command againt to trigger the tool change update in the UI
+M61 Q#<tool>
+
+; apply the offsets
+G43 H#<tool>
+
+
+; signal success by returning a value > 0:
+o<settool_override> endsub [1]
+m2

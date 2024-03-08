@@ -1,0 +1,168 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<interface>
+  <!-- interface-requires gladevcp 0.0 -->
+  <requires lib="gtk+" version="2.24"/>
+  <!-- interface-naming-policy project-wide -->
+  <object class="GtkWindow" id="window1">
+    <property name="can_focus">False</property>
+    <child>
+      <object class="GtkFrame" id="frame1">
+        <property name="visible">True</property>
+        <property name="can_focus">False</property>
+        <property name="label_xalign">0.5</property>
+        <child>
+          <object class="GtkAlignment" id="alignment1">
+            <property name="visible">True</property>
+            <property name="can_focus">False</property>
+            <property name="left_padding">10</property>
+            <property name="right_padding">10</property>
+            <child>
+              <object class="GtkTable" id="table1">
+                <property name="visible">True</property>
+                <property name="can_focus">False</property>
+                <property name="n_rows">2</property>
+                <property name="n_columns">4</property>
+                <property name="column_spacing">5</property>
+                <child>
+                  <object class="HAL_VBar" id="spindle">
+                    <property name="visible">True</property>
+                    <property name="can_focus">False</property>
+                    <property name="bg_color">#bebebebebebe</property>
+                    <property name="max">150</property>
+                    <property name="target_color">#0000ffff0000</property>
+                    <property name="text_template">%i</property>
+                    <property name="z0_border">0.75</property>
+                    <property name="z0_color">#0000ffff0000</property>
+                    <property name="z1_border">0.89999997615814209</property>
+                    <property name="z1_color">#ffffffff0000</property>
+                    <property name="z2_color">#ffff00000000</property>
+                  </object>
+                </child>
+                <child>
+                  <object class="HAL_VBar" id="x">
+                    <property name="visible">True</property>
+                    <property name="can_focus">False</property>
+                    <property name="bg_color">#bebebebebebe</property>
+                    <property name="target_color">#0000ffff0000</property>
+                    <property name="text_template">%i</property>
+                    <property name="z0_border">0.75</property>
+                    <property name="z0_color">#0000ffff0000</property>
+                    <property name="z1_border">0.89999997615814209</property>
+                    <property name="z1_color">#ffffffff0000</property>
+                    <property name="z2_color">#ffff00000000</property>
+                  </object>
+                  <packing>
+                    <property name="left_attach">1</property>
+                    <property name="right_attach">2</property>
+                  </packing>
+                </child>
+                <child>
+                  <object class="HAL_VBar" id="y">
+                    <property name="visible">True</property>
+                    <property name="can_focus">False</property>
+                    <property name="bg_color">#bebebebebebe</property>
+                    <property name="target_color">#0000ffff0000</property>
+                    <property name="text_template">%i</property>
+                    <property name="z0_border">0.75</property>
+                    <property name="z0_color">#0000ffff0000</property>
+                    <property name="z1_border">0.89999997615814209</property>
+                    <property name="z1_color">#ffffffff0000</property>
+                    <property name="z2_color">#ffff00000000</property>
+                  </object>
+                  <packing>
+                    <property name="left_attach">2</property>
+                    <property name="right_attach">3</property>
+                  </packing>
+                </child>
+                <child>
+                  <object class="HAL_VBar" id="z">
+                    <property name="visible">True</property>
+                    <property name="can_focus">False</property>
+                    <property name="bg_color">#bebebebebebe</property>
+                    <property name="target_color">#0000ffff0000</property>
+                    <property name="text_template">%i</property>
+                    <property name="z0_border">0.75</property>
+                    <property name="z0_color">#0000ffff0000</property>
+                    <property name="z1_border">0.89999997615814209</property>
+                    <property name="z1_color">#ffffffff0000</property>
+                    <property name="z2_color">#ffff00000000</property>
+                  </object>
+                  <packing>
+                    <property name="left_attach">3</property>
+                    <property name="right_attach">4</property>
+                  </packing>
+                </child>
+                <child>
+                  <object class="GtkLabel" id="label2">
+                    <property name="visible">True</property>
+                    <property name="can_focus">False</property>
+                    <property name="label" translatable="yes">Spindle</property>
+                  </object>
+                  <packing>
+                    <property name="top_attach">1</property>
+                    <property name="bottom_attach">2</property>
+                    <property name="y_options">GTK_SHRINK | GTK_FILL</property>
+                    <property name="y_padding">4</property>
+                  </packing>
+                </child>
+                <child>
+                  <object class="GtkLabel" id="label3">
+                    <property name="visible">True</property>
+                    <property name="can_focus">False</property>
+                    <property name="label" translatable="yes">X</property>
+                  </object>
+                  <packing>
+                    <property name="left_attach">1</property>
+                    <property name="right_attach">2</property>
+                    <property name="top_attach">1</property>
+                    <property name="bottom_attach">2</property>
+                    <property name="y_options">GTK_SHRINK | GTK_FILL</property>
+                    <property name="x_padding">7</property>
+                  </packing>
+                </child>
+                <child>
+                  <object class="GtkLabel" id="label4">
+                    <property name="visible">True</property>
+                    <property name="can_focus">False</property>
+                    <property name="label" translatable="yes">Y</property>
+                  </object>
+                  <packing>
+                    <property name="left_attach">2</property>
+                    <property name="right_attach">3</property>
+                    <property name="top_attach">1</property>
+                    <property name="bottom_attach">2</property>
+                    <property name="y_options">GTK_SHRINK | GTK_FILL</property>
+                    <property name="x_padding">7</property>
+                  </packing>
+                </child>
+                <child>
+                  <object class="GtkLabel" id="label5">
+                    <property name="visible">True</property>
+                    <property name="can_focus">False</property>
+                    <property name="label" translatable="yes">Z</property>
+                  </object>
+                  <packing>
+                    <property name="left_attach">3</property>
+                    <property name="right_attach">4</property>
+                    <property name="top_attach">1</property>
+                    <property name="bottom_attach">2</property>
+                    <property name="y_options">GTK_SHRINK | GTK_FILL</property>
+                    <property name="x_padding">7</property>
+                  </packing>
+                </child>
+              </object>
+            </child>
+          </object>
+        </child>
+        <child type="label">
+          <object class="GtkLabel" id="label1">
+            <property name="visible">True</property>
+            <property name="can_focus">False</property>
+            <property name="label" translatable="yes">&lt;b&gt;Load&lt;/b&gt;</property>
+            <property name="use_markup">True</property>
+          </object>
+        </child>
+      </object>
+    </child>
+  </object>
+</interface>

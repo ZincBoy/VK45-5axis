@@ -1,0 +1,84 @@
+o<9821> sub
+
+    ;  G65 P9821 Ii Dd [Ee Ff Hh Kk Qq Ss Tt Uu Vv Ww]
+    ;vector single surface probe
+	;  implemented
+	;  |  renishaw standard
+	;  |  |
+	;  x  x  vector to probe surface, either XYZ or DI
+	;  y  y  
+	;  z  z
+	;  D  D  distance to surface
+	;  I  A  orthognal angle to surface
+	;  e  h  +/- tolerance value for dimension
+	;  q  q  probe overtravel (past target point)
+	;  |  |
+	;  |  | Values set with extended g65 p9000 pre call
+	;  e  e  Experience value - tool offset containing correction factor
+	;  k  f  pecent of error to use to update tool offset
+	;  q  s  number of work offset to be updated
+	;  d  m  true position error allowance
+	;  r  t  tool number to update offset
+	;  i  u  upper tolerance for tool offset update, alarm if over this value
+	;  j  v  null band, no tool offset update is done if the error is in this band
+	;     w  print the output data NOT IMPLEMENTED
+    
+    #<startx> = #<_x>
+    #<starty> = #<_y>
+	#<startz> = #<_z>
+
+    o100 if [#<_pv_got_i> and #<_pv_got_dimension>]
+		o101 if [#<_pv_got_x> or #<_pv_got_y> or #<_pv_got_z>]
+			(abort, XYZ words not allowed with DI words in G65 P#1)
+		o101 endif
+		#<zangle> = 0
+	o100 elseif [#<_pv_got_x> or #<_pv_got_y> or #<_pv_got_z>]
+		o102 if [#<_pv_got_dimension> or #<_pv_got_i>]
+			(abort, XYZ words not allowed with DI words in G65 P#1)
+		o102 endif
+		;calculate the vectors and angles from the target positions
+		#<_pv_dimension> = [[[#<startx> - #<_pv_x>] ** 2 + [#<starty> - #<_pv_y>] ** 2 + [#<startz> - #<_pv_z>] ** 2] ** 0.5]
+		#<_pv_i> = [ATAN[#<starty> - #<_pv_y>]/[#<startx> - #<_pv_x>]]
+		#<zangle> = [atan[abs[#<startz> - #<_pv_z>]]/[#<_pv_dimension>]]
+    o100 else
+        (abort, X,Y,Z or D,I words required in P#1 vector probe cycle)
+    o100 endif
+    
+    ;theoretical positions
+    #<calx>   = [#<startx> + [cos[#<_pv_i>] * #<_pv_dimension>]]
+    #<caly>   = [#<starty> + [sin[#<_pv_i>] * #<_pv_dimension>]]
+	;start point
+	#<sd> = [#<_pv_dimension> - #<_pv_clearance>]
+	o110 if [#<sd> le 0]
+		#<sx> = #<startx>
+		#<sy> = #<starty>
+		#<probedist> = #<_pv_dimension>
+	o110 else
+		#<sx> = [#<startx> + [cos[#<_pv_i>] * [#<_pv_dimension> - #<_pv_clearance>]]]
+		#<sy> = [#<starty> + [sin[#<_pv_i>] * [#<_pv_dimension> - #<_pv_clearance>]]]
+		#<probedist> = #<_pv_clearance>
+    o110 endif
+
+    ;must have vector cal
+    o<_pm_cal_check> call [1]
+    
+    o<_pm_check_probe_state> call [0]
+
+	; go to probe starting point
+	G90 G1 X[#<sx>] Y[#<sy>] F[#<_pmm_rapid_feedrate>]
+    
+    o<_pm_probe> call [#<_pv_search_dist> + #<_pv_clearance>] [#<_pmm_backoff_distance>] [#<_pv_i>] [#<zangle>] [0] [#<probedist>]
+    
+	; return to start position
+	G90 G1 X[#<startx>] Y[#<starty>] F[#<_pmm_rapid_feedrate>]
+	
+    #<measdist> = [[[#<startx> - #[#<_pma_xpos>]] ** 2 + [#<starty> - #[#<_pma_ypos>]] ** 2] ** 0.5]
+    #[#<_pma_size>] = #<measdist>
+	
+    o<_pm_check_tolerance> call [4] [#<calx>] [#<caly>] [#<_pv_dimension>] [0] [0] [0] [#<_pv_dimtol>] [#<_pv_tpe_tol>]
+    o<_pm_set_workoffset> call [#<_pv_set_offset>] [#<_pv_offset_num>] [1] [1] [0] [#[#<_pma_xerr>]] [#[#<_pma_yerr>]] [0]
+    
+    o<_pm_set_tooloffset> call [#<_pv_set_tool>] [#<_pv_tool_num>] [0] [0] [0] [1] [1]
+		
+o<9821> endsub [0]
+M2

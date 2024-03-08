@@ -1,0 +1,160 @@
+o<_pm_ts_xyprobe> sub
+
+    ; Parameters for this macro
+    #<ztravel>          = #1
+    ; negative for left hand tool, positive for right hand, 0 for no rotation
+    #<tool_diameter>    = #2
+    ; probe overtravel distance
+    #<xdir>             = #3
+    #<ydir>             = #4
+
+    #<errpin> = #<_ini[PROBE_MACRO]PROBE_ERROR_PIN>
+    #<lowbatpin> = #<_ini[PROBE_MACRO]PROBE_LOW_BAT_PIN>
+
+    (print, ts xy probe call)
+
+    o05 if [#<_pmm_error_status> NE 0]
+        (print, ts xy error on entry)
+        o<_pm_ts_xyprobe> return [-1]
+    o05 endif
+
+    ; Set incremental mode
+    G91
+    
+        (print, ts xy error check probe)
+    M66 P[#<errpin>] L0
+        (print, ts xy error check probe3)
+    o100 if [#5399 EQ 1]
+        #<_pmm_error_status> = -107
+        o<_pm_ts_xyprobe> return [-1]
+    o100 endif
+    ;low battery
+        (print, ts xy error check battery)
+    M66 P[#<lowbatpin>] L0
+        (print, ts xy error check battery2)
+    o110 if [#5399 EQ 1]
+        #<_pmm_error_status> = -108
+        o<_pm_ts_xyprobe> return [-1]
+    o110 endif
+
+    ; Check if probe is already tripped
+        (print, ts xy error probe tripped)
+    o120 if [#<_hal[motion.probe-input]> EQ 1]
+        #<_pmm_error_status> = -109
+        o<_pm_ts_xyprobe> return [-1]
+    o120 endif
+    G91 G1 Z-0.0002
+
+    ; initial position
+    #<x> = #<_x>
+    #<y> = #<_y>
+    #<z> = #<_z>
+
+    (print, ts_xy_probe initial move)
+    
+    #<inital_move> = [abs[#<tool_diameter>] / 2 + #<_ini[TOOLSENSOR]TS_DIAMETER> / 2 + #<_pv_ts_overtravel>]
+    
+    ; move to put the edge of the tool past the edge of the tool setter stylus
+    G91 G38.3 X[#<inital_move> * -#<xdir>] Y[#<inital_move> * -#<ydir>] F[#<_ini[PROBE_MACRO]RAPID_VELOCITY>]
+    o130 if [#5070]
+         #<_pmm_error_status> = -101
+        o<_pm_ts_xyprobe> return [-1]
+    o130 endif
+
+    (print, ts_xy_probe set rpm)
+    ; set spindle rpm for coarse probe
+    o<_pm_ts_set_rpm> call [#<tool_diameter>] [0] [0] [0]
+
+    (print, ts_xy_probe z down move)
+
+    ; safe move to negative space
+    G91 G38.3 Z[-#<ztravel>]
+    o150 if [#5070]
+        #<_pmm_error_status> = -101
+        o<_pm_ts_xyprobe> return [-1]
+    o150 endif
+    
+    (print, ts_xy_probe probe move)
+
+    ; Perform the Search
+    G91 G38.3 X[[#<_pv_ts_overtravel> + #<_pv_ts_probe_overtravel>] * #<xdir>] Y[[#<_pv_ts_overtravel> + #<_pv_ts_probe_overtravel>] * #<ydir>]
+
+    ; Check to see if we failed to make contact
+    o200 if [#5070 EQ 0]
+        #<_pmm_error_status> = -110
+        o<_pm_ts_xyprobe> return [-1]
+    o200 endif
+
+    ;probe error
+    M66 P[#<errpin>] L0
+    o210 if [#5399 EQ 1]
+        #<_pmm_error_status> = -107
+        o<_pm_ts_xyprobe> return [-1]
+    o210 endif
+
+    ; check how far we moved.  If less that latch_distance then go back to where we started instead of the latch_distance
+    #<dx> = [#<x> - #<_x>]
+    #<dy> = [#<y> - #<_y>]
+    #<dist_moved> = abs[#<dx> + #<dy>]
+
+    o220 if [#<dist_moved> LT #<_pv_ts_latch_distance>]
+        #<latch_dist> = #<dist_moved>
+    o220 else
+        #<latch_dist> = #<_pv_ts_latch_distance>
+    o220 endif
+
+    (print, ts_xy_probe latch move)
+
+    ; it is safe to do a G1 move here as we already move through this space without issue
+    G91 G1 X[#<latch_dist> * -#<xdir> *2] Y[#<latch_dist> * -#<ydir> *2] F[#<_ini[PROBE_MACRO]RAPID_VELOCITY>]
+
+    ; let the probe settle
+    G4 P[#<_ini[PROBE_MACRO]PROBE_SETTLE>]
+
+    M66 E0 L0
+    ; probe still tripped, should never happen but good to check
+    o230 if [#<_hal[motion.probe-input]> EQ 1]
+        #<_pmm_error_status> = -109
+        o<_pm_ts_xyprobe> return [-1]
+    o230 endif
+
+    (print, ts_xy_probe set fine rpm)
+
+    ;go to fine rpm
+    o<_pm_ts_set_rpm> call [#<tool_diameter>] [1] [0] [0]
+
+	#<fx> = #<_x>
+	#<fy> = #<_y>
+
+    (print, ts_xy_probe fine probe move)
+
+    ; fine probe
+    G91 G38.3 X[[#<latch_dist> * 2] * #<xdir>] Y[[#<latch_dist> * 2] * #<ydir>]
+	#[#<_pma_xpos>] = #5061
+	#[#<_pma_ypos>] = #5062
+
+    ; it is safe to do a G1 move here as we already move through this space without issue
+    G90 G1 X[#<fx>] Y[#<fy>] F[#<_ini[PROBE_MACRO]RAPID_VELOCITY>]
+    ; Move away to the starting z location
+    G90 G1 Z[#<z>]
+    ; move back to the starting x/y location
+    G90 G1 X[#<x>] Y[#<y>] 
+
+    ; Check to see if we failed to make contact
+    o240 if [#5070 EQ 0]
+        #<_pmm_error_status> = -110
+        o<_pm_ts_xyprobe> return [-1]
+    o240 endif
+
+    ; probe error
+    M66 P[#<errpin>] L0
+    o250 if [#5399 EQ 1]
+        #<_pmm_error_status> = -107
+        o<_pm_ts_xyprobe> return [-1]
+    o250 endif
+
+    ; let the probe settle
+    G4 P[#<_ini[PROBE_MACRO]PROBE_SETTLE>]
+
+o<_pm_ts_xyprobe> endsub [0]
+M2

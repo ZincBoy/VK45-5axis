@@ -1,0 +1,117 @@
+; sets the tool offset based on the probed position and settings
+o<_pm_set_tooloffset> sub
+
+    #<settool>      = #1
+    #<tool_num>     = #2
+    #<use_x>        = #3
+    #<use_y>        = #4
+    #<use_z>        = #5
+    #<use_size>     = #6
+    #<radius_meas>  = #7
+
+    o100 if [#<_pmm_error_status> NE 0]
+        o<_pm_set_tooloffset> return [-1]
+    o100 elseif [#<settool> NE 1]
+        ; skip out if we aren't setting the tool
+        o<_pm_set_tooloffset> return [0]
+    o100 endif
+    
+    ; get the settings from the aux G65.1 call
+    o020 if [#<_pv_got_ext_i> GT 0]
+        ;upper tolerance
+        #<got_upper> = 1
+        #<upper_tol> = #<_pv_ext_i>
+    o020 elseif [#<_pv_ext_i> LT 0]
+        #<_pmm_error_status> = -121
+        o<_pm_set_tooloffset> return [-1]
+    o020 else
+        #<got_upper> = 0
+        #<upper_tol> = 0
+    o020 endif
+    o030 if [#<_pv_got_ext_j> GT 0]
+        ;null adjust band
+        #<got_null> = 1
+        #<null_band> = #<_pv_ext_j>
+    o030 elseif [#<_pv_ext_j> LT 0]
+        #<_pmm_error_status> = -122
+        o<_pm_set_tooloffset> return [-1]
+    o030 else
+        #<got_null> = 0
+        #<null_band> = 0
+    o030 endif
+    o040 if [#<_pv_got_ext_k> GT 0]
+        ;percent error feedback
+        #<got_percent_error> = 1
+        #<percent_error> = [#<_pv_ext_k> / 100]
+    o040 elseif [#<_pv_ext_k> LT 0]
+        #<_pmm_error_status> = -123
+        o<_pm_set_tooloffset> return [-1]
+    o040 else
+        #<got_percent_error> = 0
+        #<percent_error> = 1
+    o040 endif
+
+    ; read the current offsets for the selected tool
+    G10.1 P[#<tool_num>]
+    #<current_dia> = #<_read_tool_table_diameter>
+    #<current_length> = #<_read_tool_table_zoffset>
+    
+	(print, tool diameter: #<current_dia>)
+	
+    o110 if [#<_pv_got_experience>]
+        G10.1 P[#<_pv_experience>]
+        #<experience_value> = #<_read_tool_table_diameter>
+    o110 else
+        #<experience_value> = 0
+    o110 endif
+    
+    #<correction_val> = 0
+    o200 if [#<use_x> OR #<use_y> OR #<use_size>]
+        ; tool diameter correction
+        o300 if [#<use_x> and #<use_y>]
+            #<correction_val> = [[#[#<_pma_xerr>] + #[#<_pma_yerr>]] / 2]
+        o300 elseif [#<use_x>]
+            #<correction_val> = #[#<_pma_xerr>]
+        o300 elseif [#<use_y>]
+            #<correction_val> = #[#<_pma_yerr>]
+        o300 else
+            ;size
+            #<correction_val> = #[#<_pma_size_err>]
+        o300 endif
+        o310 if [#<radius_meas>]
+            #<correction_val> = [#<correction_val> * 2]
+        o310 endif
+    o200 elseif [#<use_z>]
+        ; tool length correction
+            #<correction_val> = #[#<_pma_zerr>]
+    o200 else
+        (abort, tooloffset can't be set without an active axis)
+    o200 endif
+	(print, correction_val1: #<correction_val>)
+
+    o210 if [[ABS[#<correction_val>] GT #<upper_tol>] AND #<got_upper>]
+        #<_pmm_error_status> = -124
+        o<_pm_set_tooloffset> return [-1]
+    o210 endif
+    
+    o220 if [[ABS[#<correction_val>] LT #<null_band>] AND #<got_null>]
+        ; don't apply any corrections
+        o<_pm_set_tooloffset> return [0]
+    o220 endif
+    
+    ; add the experience value, not sure if this is right or we should multiply this value?
+    #<correction_val> = [#<correction_val> + #<experience_value>]
+    ; multiply by the percent factor
+    #<correction_val> = [#<correction_val> * #<percent_error>]
+    
+	(print, correction_val2: #<correction_val>)
+    ; apply correction
+    o230 if [#<use_z>]
+        G10 L1 P[#<tool_num>] Z[#<current_length> + #<correction_val>]
+    o230 else
+        ; tooltable is in diameter but G10 takes radius values
+        G10 L1 P[#<tool_num>] R[[#<current_dia> - #<correction_val>] / 2]
+    o230 endif
+
+o<_pm_set_tooloffset> endsub [0]
+M2

@@ -1,0 +1,126 @@
+;angle web or boss measurment
+o<_pm_probe_3point_bore> sub
+
+    #<a> = #1
+    #<b> = #2
+    #<c> = #3
+    #<d> = #4
+    #<r> = #5
+    #<zdown> = #6
+	#<z> = #7
+    #<search_dist> = #8
+    
+    o10 if [#<_pmm_error_status>]
+        o<_pm_probe_3point_bore> return [-1]
+    o10 endif
+
+    #<startx> = #<_x>
+    #<starty> = #<_y>
+    #<startz> = #<_z>
+	
+	#<target_distance> = #<r>
+	o50 if [#<zdown> and [#<r> ge 0]]
+        #<searchdir> = 1
+		#<startdist> = [#<d> / 2 + #<r>]
+	o50 else
+        #<searchdir> = 0
+		#<startdist> = [#<d> / 2  - abs[#<r>]]
+		o55 if [#<startdist> lt 0]
+			#<target_distance> = [#<d> / 2]
+			#<startdist> = 0
+		o55 endif
+	o50 endif
+
+    ; starting points for probing
+    #<sx1>   = [#<startx> + cos[#<a>] * #<startdist>]
+    #<sy1>   = [#<starty> + sin[#<a>] * #<startdist>]
+    #<sx2>   = [#<startx> + cos[#<b>] * #<startdist>]
+    #<sy2>   = [#<starty> + sin[#<b>] * #<startdist>]
+    #<sx3>   = [#<startx> + cos[#<c>] * #<startdist>]
+    #<sy3>   = [#<starty> + sin[#<c>] * #<startdist>]
+
+    G90 G1 X[#<sx1>] Y[#<sy1>] F[#<_pmm_rapid_feedrate>]
+    o100 if [#<zdown>]
+        G1 Z[#<z>]
+    o100 endif
+
+    ; probe first  direction
+    o<_pm_probe> call [#<search_dist> + abs[#<r>]] [#<_pmm_backoff_distance>] [#<a> - 180 * #<searchdir>] [0] [0] [#<target_distance>]
+    o<_pm_check_error> call [#<_value>]
+
+    #<x1> = #[#<_pma_xpos>]
+    #<y1> = #[#<_pma_ypos>]
+
+    o110 if [#<zdown>]
+        G90 G1 Z[#<startz>]
+    o110 endif
+
+    G90 G1 X[#<startx>] Y[#<starty>] F[#<_pmm_rapid_feedrate>]
+
+	G1 X[#<sx2>] Y[#<sy2>] F[#<_pmm_rapid_feedrate>]
+    o120 if [#<zdown>]
+        G1 Z[#<z>]
+    o120 endif
+
+    ; probe second  direction
+    o<_pm_probe> call [#<search_dist> + abs[#<r>]] [#<_pmm_backoff_distance>] [#<b> - 180 * #<searchdir>] [0] [0] [#<target_distance>]
+    o<_pm_check_error> call [#<_value>]
+
+    #<x2> = #[#<_pma_xpos>]
+    #<y2> = #[#<_pma_ypos>]
+
+    o130 if [#<zdown>]
+        G90 G1 Z[#<startz>]
+    o130 endif
+
+    G90 G1 X[#<startx>] Y[#<starty>] F[#<_pmm_rapid_feedrate>]
+
+	G1 X[#<sx3>] Y[#<sy3>] F[#<_pmm_rapid_feedrate>]
+    o140 if [#<zdown>]
+        G1 Z[#<z>]
+    o140 endif
+
+    ; probe third  direction
+    o<_pm_probe> call [#<search_dist> + abs[#<r>]] [#<_pmm_backoff_distance>] [#<c> - 180 * #<searchdir>] [0] [0] [#<target_distance>]
+    o<_pm_check_error> call [#<_value>]
+
+    #<x3> = #[#<_pma_xpos>]
+    #<y3> = #[#<_pma_ypos>]
+
+    o150 if [#<zdown>]
+        G90 G1 Z[#<startz>]
+    o150 endif
+
+    G90 G1 X[#<startx>] Y[#<starty>] F[#<_pmm_rapid_feedrate>]
+
+	; equation of a circle from three points
+	;  https://www.geeksforgeeks.org/equation-of-circle-when-three-points-on-the-circle-are-given/
+	#<x12> = [#<x1> - #<x2>]
+	#<x13> = [#<x1> - #<x3>]
+	#<y12> = [#<y1> - #<y2>]
+	#<y13> = [#<y1> - #<y3>]
+	#<y31> = [#<y3> - #<y1>]
+	#<y21> = [#<y2> - #<y1>]
+	#<x31> = [#<x3> - #<x1>]
+	#<x21> = [#<x2> - #<x1>]
+	
+	#<sx13> = [#<x1> ** 2 - #<x3> ** 2]
+	#<sy13> = [#<y1> ** 2 - #<y3> ** 2]
+	#<sx21> = [#<x2> ** 2 - #<x1> ** 2]
+	#<sy21> = [#<y2> ** 2 - #<y1> ** 2]
+	
+	#<f> = [[#<sx13> * #<x12> + #<sy13> * #<x12> + #<sx21> * #<x13> + #<sy21> * #<x13>] / [2 * [#<y31> * #<x12> - #<y21> * #<x13>]]]
+	#<g> = [[#<sx13> * #<y12> + #<sy13> * #<y12> + #<sx21> * #<y13> + #<sy21> * #<y13>] / [2 * [#<x31> * #<y12> - #<x21> * #<y13>]]]
+	#<c> = [-[#<x1> ** 2] - [#<y1> ** 2] - 2 * #<g> * #<x1> - 2 * #<f> * #<y1>]
+	
+	#<yc> = [-#<f>]
+	#<xc> = [-#<g>]
+	
+	#<radius> = [[#<xc> ** 2 + #<yc> ** 2 - #<c>] ** 0.5]
+
+    #[#<_pma_xpos>] = #<xc>
+    #[#<_pma_ypos>] = #<yc>
+    #[#<_pma_size>] = [#<radius> * 2]
+
+o<_pm_probe_3point_bore> endsub [0]
+M2

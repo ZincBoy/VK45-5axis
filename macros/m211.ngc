@@ -1,0 +1,16 @@
+;M211 A axis brake off
+o<m211> sub
+
+	; set brake pin
+	M65 P#<_ini[AXIS_A]BRAKE_PIN>
+	
+	; wait on braked pin until true
+	M66 P#<_ini[AXIS_A]BRAKED_PIN> L4 Q#<_ini[AXIS_A]BRAKE_TIMEOUT>
+	
+	; error out if braking times out
+	o100 if [#5399 eq -1]
+		(abort, A axis brake disengagement timed out)
+	o100 endif
+
+o<m211> endsub [0]
+M2

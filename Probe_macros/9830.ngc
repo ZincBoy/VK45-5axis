@@ -1,0 +1,11 @@
+o<9830> sub
+    
+    ; store cal data in specific memory
+    o200 if [#<_pv_got_k>]
+        o<_pm_store_cal> call [#<_pv_k>]
+    o200 else
+        (abort, Missing K word in G65 P9830 probe cal data store)
+    o200 endif
+    
+o<9330> endsub
+M2

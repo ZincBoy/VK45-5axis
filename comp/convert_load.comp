@@ -1,0 +1,25 @@
+component convert_load "converts the load input from the drive to a float";
+pin in  s32 in;
+pin out float out;
+
+author "alex lait";
+license "GPL";
+function _;
+
+;;
+
+FUNCTION(_){
+
+	if (in > 0x8000)
+	{
+		int temp = (in - 0x0000FFFF) - 1;
+		temp = -temp;
+		out = (float)temp;
+	}
+	else
+	{
+		out = (float)in;
+	}
+	
+
+}
